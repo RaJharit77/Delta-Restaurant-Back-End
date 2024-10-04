@@ -1,2 +1,1 @@
-web: node src/server.js
-#web: npm run server
+web: npm run server
