@@ -4,7 +4,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "server": "node ./backend/server.js"
+    "server": "nodemon ./backend/server.js"
   },
   "keywords": [],
   "author": "",
@@ -16,10 +16,15 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
+    "helmet": "^8.0.0",
+    "mongodb": "^6.9.0",
     "mongoose": "^8.7.0",
-    "nodemon": "^3.1.7"
+    "morgan": "^1.10.0",
+    "pg": "^8.13.0"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21"
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "nodemon": "^3.1.7"
   }
 }
