@@ -57,6 +57,73 @@ app.post('/api/reservation', async (req, res) => {
     }
 });
 
+const generateOrderNumber = (orders) => {
+    const lastOrder = orders[orders.length - 1];
+    const lastOrderNumber = lastOrder ? parseInt(lastOrder.orderNumber, 10) : 0;
+    return (lastOrderNumber + 1).toString().padStart(6, '0');
+};
+
+const readOrders = async () => {
+    try {
+        const data = await fs.readFile(path.join(__dirname, './data/commande.json'), 'utf8');
+        return JSON.parse(data || '[]');
+    } catch (error) {
+        console.error('Erreur lors de la lecture du fichier commande.json:', error.message);
+        return [];
+    }
+};
+
+const writeOrders = async (orders) => {
+    try {
+        await fs.writeFile(path.join(__dirname, './data/commande.json'), JSON.stringify(orders, null, 2));
+    } catch (error) {
+        console.error('Erreur lors de l\'écriture dans le fichier commande.json:', error.message);
+    }
+};
+
+app.get('/api/generateOrderNumber', async (req, res) => {
+    try {
+        const orders = await readOrders();  // Lecture des commandes existantes
+        const orderNumber = generateOrderNumber(orders);  // Génération du nouveau numéro
+        res.status(200).json({ orderNumber });
+    } catch (error) {
+        console.error('Erreur lors de la génération du numéro de commande:', error.message);
+        res.status(500).json({ message: 'Erreur interne du serveur.' });
+    }
+});
+
+
+app.post('/api/commande', async (req, res) => {
+    const { mealName, quantity, tableNumber } = req.body;
+
+    if (!mealName || !quantity || !tableNumber) {
+        return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
+    }
+
+    try {
+        const orders = await readOrders();
+
+        const orderNumber = generateOrderNumber(orders);
+
+        const newOrder = {
+            mealName,
+            quantity,
+            tableNumber,
+            orderNumber,
+            date: new Date().toISOString(),
+        };
+
+        orders.push(newOrder);
+
+        await writeOrders(orders);
+
+        return res.status(200).json({ message: 'Commande reçue avec succès!', order: newOrder });
+    } catch (error) {
+        console.error('Erreur lors du traitement de la commande:', error.message);
+        return res.status(500).json({ message: 'Erreur interne du serveur.' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
