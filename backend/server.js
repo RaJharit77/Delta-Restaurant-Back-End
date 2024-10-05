@@ -65,7 +65,7 @@ const generateOrderNumber = (orders) => {
 
 const readOrders = async () => {
     try {
-        const data = await fs.readFile(path.join(__dirname, './data/commande.json'), 'utf8');
+        const data = await fs.readFile(path.join(__dirname, './data/commandes.json'), 'utf8');
         return JSON.parse(data || '[]');
     } catch (error) {
         console.error('Erreur lors de la lecture du fichier commande.json:', error.message);
@@ -75,7 +75,7 @@ const readOrders = async () => {
 
 const writeOrders = async (orders) => {
     try {
-        await fs.writeFile(path.join(__dirname, './data/commande.json'), JSON.stringify(orders, null, 2));
+        await fs.writeFile(path.join(__dirname, './data/commandes.json'), JSON.stringify(orders, null, 2));
     } catch (error) {
         console.error('Erreur lors de l\'écriture dans le fichier commande.json:', error.message);
     }
@@ -83,8 +83,8 @@ const writeOrders = async (orders) => {
 
 app.get('/api/generateOrderNumber', async (req, res) => {
     try {
-        const orders = await readOrders();  // Lecture des commandes existantes
-        const orderNumber = generateOrderNumber(orders);  // Génération du nouveau numéro
+        const orders = await readOrders();  
+        const orderNumber = generateOrderNumber(orders);
         res.status(200).json({ orderNumber });
     } catch (error) {
         console.error('Erreur lors de la génération du numéro de commande:', error.message);
