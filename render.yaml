@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: delta-front-end
+    runtime: static
+    buildCommand: 'npm install && npm run build'
+    startCommand: 'npm run dev'
+    envVars:
+      - key: PORT
+        value: 5000
+    autoDeploy: true
+
+  - type: web
+    name: delta-back-end
+    runtime: node
+    plan: free
+    buildCommand: 'npm install'
+    startCommand: 'npm run server'
+    envVars:
+      - key: DATA_PATH
+        value: ./data/data.json
+      - key: RESERVATIONS_PATH
+        value: ./data/reservations.json
+      - key: COMMANDES_PATH
+        value: ./data/commandes.json
+      - key: CONTACTS_PATH
+        value: ./data/contacts.json
+      - key: PORT
+        value: 5000
+    autoDeploy: true
