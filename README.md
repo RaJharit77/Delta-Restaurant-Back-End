@@ -14,7 +14,7 @@ Non, ce site n'a rien avoir aux maths mais j'ai juste emprunter ce mot <mark>del
 
 ### Pour infos
 Si vous cherchez sur google le nom <mark>Delta Restaurant®</mark>, il y a un <mark>Delta Restaurant®</mark> qui se situe à Athènes Grèce. Et vous me 
-demandez alors que "Tu as copié le nom du restaurant qui se situe à Grèce, et tu change juste le coordonée tous et tous, n'est-ce-pa ?". Bah! Non,
+demandez alors que "Tu as copié le nom du restaurant qui se situe à Grèce, et tu change juste le coordonée tous et tous, n'est-ce-pas ?". Bah! Non,
 je n'ai jamais copié le nom du restaurant à Athènes, Grèce mais je suis juste inspiré et obsédé par le mot delta(▲) c'est pourquoi j'ai décidé de la 
 nommé comme ça mais il n'a rien avoir avec le resto à Grèce; j'ai juste une idéé en tête: "est-ce-que ce nom de restaurant que j'ai créé existe vraiment ?", pff!Puis il existe après avoir la recherche sur google xD. Or, j'ai juste emprunter leur carte à Athènes pour le contact car je n'ai pas encore un emplacement exacte pour le resto à Madagascar et puis c'est juste une inspiration pour mon projet informatique :D.
 
