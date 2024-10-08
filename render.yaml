@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: delta-front-end
+    name: delta-restaurant-front-end
     runtime: static
     buildCommand: 'npm install && npm run build'
     startCommand: 'npm run dev'
@@ -10,7 +10,7 @@ services:
     autoDeploy: true
 
   - type: web
-    name: delta-back-end
+    name: delta-restaurant-back-end
     runtime: node
     plan: free
     buildCommand: 'npm install'
