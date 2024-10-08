@@ -92,7 +92,6 @@ app.get('/api/generateOrderNumber', async (req, res) => {
     }
 });
 
-
 app.post('/api/commande', async (req, res) => {
     const { mealName, quantity, tableNumber } = req.body;
 
