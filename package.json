@@ -7,7 +7,7 @@
     "server": "nodemon ./backend/server.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "RaJharit77",
   "license": "ISC",
   "description": "",
   "dependencies": {
