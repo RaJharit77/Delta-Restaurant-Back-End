@@ -46,6 +46,8 @@ app.post('/api/contact', async (req, res) => {
 app.post('/api/reservation', async (req, res) => {
     const reservationData = req.body;
 
+    console.log('Réservation reçue:', req.body);
+
     try {
         const dataPath = path.join(__dirname, './data/reservations.json');
         const existingData = await fs.readFile(dataPath, 'utf8');
