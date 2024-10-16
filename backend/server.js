@@ -14,7 +14,8 @@ app.use(cors());
 app.use(express.json());
 
 //api
-app.get('/api/menu', async (req, res) => {
+//menus
+app.get('/api/menus', async (req, res) => {
     try {
         const data = await fs.readFile(path.resolve(__dirname, './data/data.json'), 'utf8');
         const menuItems = JSON.parse(data);
@@ -25,7 +26,8 @@ app.get('/api/menu', async (req, res) => {
     }
 });
 
-app.post('/api/contact', async (req, res) => {
+//contacts
+app.post('/api/contacts', async (req, res) => {
     const contactData = req.body;
 
     console.log('Données de contact reçues:', contactData);
@@ -43,7 +45,8 @@ app.post('/api/contact', async (req, res) => {
     }
 });
 
-app.post('/api/reservation', async (req, res) => {
+//reservations
+app.post('/api/reservations', async (req, res) => {
     const reservationData = req.body;
 
     console.log('Réservation reçue:', req.body);
@@ -60,6 +63,7 @@ app.post('/api/reservation', async (req, res) => {
     }
 });
 
+//générer les numéros de commandes
 const generateOrderNumber = (orders) => {
     const lastOrder = orders[orders.length - 1];
     const lastOrderNumber = lastOrder ? parseInt(lastOrder.orderNumber, 10) : 0;
@@ -84,6 +88,7 @@ const writeOrders = async (orders) => {
     }
 };
 
+// api génération des numéros de commande
 app.get('/api/generateOrderNumber', async (req, res) => {
     try {
         const orders = await readOrders();  
@@ -95,7 +100,8 @@ app.get('/api/generateOrderNumber', async (req, res) => {
     }
 });
 
-app.post('/api/commande', async (req, res) => {
+//commandes
+app.post('/api/commandes', async (req, res) => {
     const { mealName, quantity, tableNumber } = req.body;
 
     if (!mealName || !quantity || !tableNumber) {
