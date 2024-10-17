@@ -11,7 +11,9 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors({
-    origin: 'https://delta-restaurant-madagascar.vercel.app'  
+    origin: 'https://delta-restaurant-madagascar.vercel.app',  
+    methods: 'GET,POST,PUT,DELETE',
+    allowedHeaders: 'Content-Type,Authorization'
 }));
 
 app.use(cors());
