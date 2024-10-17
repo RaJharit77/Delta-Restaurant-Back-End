@@ -10,8 +10,19 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const allowedOrigins = [
+    'https://delta-restaurant-madagascar.vercel.app',
+    'https://delta-restaurant-back-end.onrender.com'
+];
+
 const corsOptions = {
-    origin: 'https://delta-restaurant-madagascar.vercel.app',
+    origin: (origin, callback) => {
+        if (allowedOrigins.includes(origin) || !origin) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
