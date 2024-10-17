@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 5000;
 //origin autorized
 const allowedOrigins = [
     'https://delta-restaurant-madagascar.vercel.app',
-    'https://delta-restaurant-back-end.onrender.com'
+    'https://delta-restaurant-madagascar.onrender.com'
 ];
 
 const corsOptions = {
