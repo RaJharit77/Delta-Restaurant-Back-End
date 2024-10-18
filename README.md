@@ -18,7 +18,14 @@ demandez alors que "Tu as copié le nom du restaurant qui se situe à Grèce, et
 je n'ai jamais copié le nom du restaurant à Athènes, Grèce mais je suis juste inspiré et obsédé par le mot delta(▲) c'est pourquoi j'ai décidé de la 
 nommé comme ça mais il n'a rien avoir avec le resto à Grèce; j'ai juste une idéé en tête: "est-ce-que ce nom de restaurant que j'ai créé existe vraiment ?", pff!Puis il existe après avoir la recherche sur google xD. Or, j'ai juste emprunter leur carte à Athènes pour le contact car je n'ai pas encore un emplacement exacte pour le resto à Madagascar et puis c'est juste une inspiration pour mon projet informatique :D.
 
-### Lien de déploiement du site sur render
+
+### Le Lien du déploiement du site sur render
 Voici le lien du site web déployé sur render(https://render.com): 
 
 delta-restaurant: https://delta-restaurant-madagascar.onrender.com
+
+
+### Le Lien du déploiement du site sur render
+Voici le lien du site web déployé sur render(https://vercel.com): 
+
+delta-restaurant: https://delta-restaurant-madagascar.vercel.app
