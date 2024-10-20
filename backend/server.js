@@ -134,16 +134,23 @@ const generateFormattedOrderNumber = (id) => {
     return id.toString().padStart(6, '0');
 };
 
-app.get('/api/generateOrderNumber', async (req, res) => {
-    try {
-        const result = await db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', ['', 0, 0, '']);
-        const orderNumber = generateFormattedOrderNumber(result.lastID);
-        await db.run('UPDATE commandes SET orderNumber = ? WHERE id = ?', [orderNumber, result.lastID]);
-        res.status(200).json({ orderNumber });
-    } catch (error) {
-        console.error('Erreur lors de la génération du numéro de commande:', error);
-        res.status(500).json({ message: 'Erreur interne du serveur.' });
-    }
+app.get('/api/generateOrderNumber', (req, res) => {
+    db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', ['', 0, 0, ''], function(err) {
+        if (err) {
+            console.error('Erreur lors de l\'insertion de la commande:', err);
+            return res.status(500).json({ message: 'Erreur interne lors de la génération du numéro de commande.' });
+        }
+
+        const orderNumber = generateFormattedOrderNumber(this.lastID);
+        db.run('UPDATE commandes SET orderNumber = ? WHERE id = ?', [orderNumber, this.lastID], (updateErr) => {
+            if (updateErr) {
+                console.error('Erreur lors de la mise à jour du numéro de commande:', updateErr);
+                return res.status(500).json({ message: 'Erreur interne lors de la mise à jour du numéro de commande.' });
+            }
+
+            res.status(200).json({ orderNumber });
+        });
+    });
 });
 
 // Commandes
