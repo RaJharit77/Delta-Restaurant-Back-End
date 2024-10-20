@@ -11,30 +11,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-const allowedOrigins = [
-    'https://delta-restaurant-madagascar.vercel.app',
-    'https://delta-restaurant-madagascar.onrender.com',
-    'http://localhost:5173'
-];
-
-const corsOptions = {
-    origin: (origin, callback) => {
-        if (allowedOrigins.includes(origin) || !origin) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
-};
-
-app.use(cors(corsOptions));
-app.use(express.json());
+const dbPath = process.env.DB_PATH || './database.db';
 
 const dbPromise = open({
-    filename: path.join(__dirname, 'database.db'),
+    filename: path.join(__dirname, dbPath),
     driver: sqlite3.Database
 });
 
@@ -68,6 +48,28 @@ const dbPromise = open({
         );
     `);
 })();
+
+const allowedOrigins = [
+    'https://delta-restaurant-madagascar.vercel.app',
+    'https://delta-restaurant-madagascar.onrender.com',
+    'http://localhost:5173'
+];
+
+const corsOptions = {
+    origin: (origin, callback) => {
+        if (allowedOrigins.includes(origin) || !origin) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+};
+
+app.use(cors(corsOptions));
+app.use(express.json());
 
 // api
 // Menus
