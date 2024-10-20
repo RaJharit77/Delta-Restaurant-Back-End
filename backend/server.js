@@ -1,5 +1,6 @@
 import cors from 'cors';
 import express from 'express';
+import fs from 'fs/promises';
 import path from 'path';
 import { open } from 'sqlite';
 import sqlite3 from 'sqlite3';
@@ -57,9 +58,11 @@ const allowedOrigins = [
 
 const corsOptions = {
     origin: (origin, callback) => {
+        console.log('Request origin:', origin);
         if (allowedOrigins.includes(origin) || !origin) {
             callback(null, true);
         } else {
+            console.error('Not allowed by CORS', origin);
             callback(new Error('Not allowed by CORS'));
         }
     },
@@ -133,6 +136,7 @@ app.post('/api/commandes', async (req, res) => {
         await db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber, date) VALUES (?, ?, ?, ?, ?)', 
             [mealName, quantity, tableNumber, orderNumber, new Date().toISOString()]);
 
+            console.log('Order number generated:', orderNumber);
         res.status(200).json({ message: 'Commande reçue avec succès!', order: { mealName, quantity, tableNumber, orderNumber } });
     } catch (error) {
         console.error('Erreur lors du traitement de la commande:', error);
