@@ -3,7 +3,6 @@ import express from 'express';
 import fs from 'fs/promises';
 import cron from 'node-cron';
 import path from 'path';
-import { open } from 'sqlite';
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
 
@@ -15,24 +14,22 @@ const PORT = process.env.PORT || 5000;
 
 const dbPath = process.env.DB_PATH || './database.db';
 
-const dbPromise = open({
-    filename: path.join(__dirname, dbPath),
-    driver: sqlite3.Database
-});
-
-(async () => {
-    try {
-        const db = await dbPromise;
-        await db.exec(`
+const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+        console.error('Erreur lors de l\'ouverture de la base de données:', err.message);
+    } else {
+        console.log('Connected to SQLite database.');
+        db.run(`
         CREATE TABLE IF NOT EXISTS contacts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             email TEXT NOT NULL,
             subject TEXT NOT NULL,
             message TEXT NOT NULL
+        );`
         );
 
-        CREATE TABLE IF NOT EXISTS reservations (
+        db.run(`CREATE TABLE IF NOT EXISTS reservations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             firstname TEXT NOT NULL,
             name TEXT NOT NULL,
@@ -41,20 +38,18 @@ const dbPromise = open({
             dateTime TEXT NOT NULL,
             guests INTEGER NOT NULL
         );
+        `);
 
-        CREATE TABLE IF NOT EXISTS commandes (
+        db.run(`CREATE TABLE IF NOT EXISTS commandes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             mealName TEXT NOT NULL,
             quantity INTEGER NOT NULL,
             tableNumber INTEGER NOT NULL,
             orderNumber TEXT NOT NULL UNIQUE
         );
-    `);
-        console.log('Tables created successfully');
-    } catch (error) {
-        console.error('Error creating tables:', error.message);
+        `);
     }
-})();
+});
 
 const allowedOrigins = [
     'https://delta-restaurant-madagascar.vercel.app',
@@ -130,7 +125,7 @@ app.get('/api/generateOrderNumber', async (req, res) => {
     try {
         const db = await dbPromise;
         // Créer une nouvelle commande temporaire pour obtenir l'ID auto-incrémenté
-        const result = await db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', 
+        const result = await db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)',
             ['', 0, 0, '']); // Valeurs temporaires
 
         // Utiliser l'ID pour générer un numéro de commande formaté
@@ -157,7 +152,7 @@ app.post('/api/commandes', async (req, res) => {
         const db = await dbPromise;
 
         // Insérer la commande sans numéro
-        const result = await db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', 
+        const result = await db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)',
             [mealName, quantity, tableNumber, '']); // Order number temporaire
 
         // Utiliser l'ID auto-incrémenté pour générer un numéro de commande formaté
