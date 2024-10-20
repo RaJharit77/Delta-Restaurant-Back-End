@@ -37,6 +37,12 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Middleware pour gérer les erreurs
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ message: 'Internal Server Error', error: err.message });
+});
+
 // SQLite database setup
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
@@ -134,23 +140,26 @@ const generateFormattedOrderNumber = (id) => {
     return id.toString().padStart(6, '0');
 };
 
-app.get('/api/generateOrderNumber', (req, res) => {
-    db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', ['', 0, 0, ''], function(err) {
-        if (err) {
-            console.error('Erreur lors de l\'insertion de la commande:', err);
-            return res.status(500).json({ message: 'Erreur interne lors de la génération du numéro de commande.' });
-        }
-
-        const orderNumber = generateFormattedOrderNumber(this.lastID);
-        db.run('UPDATE commandes SET orderNumber = ? WHERE id = ?', [orderNumber, this.lastID], (updateErr) => {
-            if (updateErr) {
-                console.error('Erreur lors de la mise à jour du numéro de commande:', updateErr);
-                return res.status(500).json({ message: 'Erreur interne lors de la mise à jour du numéro de commande.' });
+app.get('/api/generateOrderNumber', async (req, res) => {
+    try {
+        db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', ['', 0, 0, ''], function(err) {
+            if (err) {
+                throw new Error('Erreur lors de l\'insertion de la commande');
             }
 
-            res.status(200).json({ orderNumber });
+            const orderNumber = generateFormattedOrderNumber(this.lastID);
+            db.run('UPDATE commandes SET orderNumber = ? WHERE id = ?', [orderNumber, this.lastID], (updateErr) => {
+                if (updateErr) {
+                    throw new Error('Erreur lors de la mise à jour du numéro de commande');
+                }
+
+                res.status(200).json({ orderNumber });
+            });
         });
-    });
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).json({ message: 'Erreur interne lors de la génération du numéro de commande.', error: error.message });
+    }
 });
 
 // Commandes
