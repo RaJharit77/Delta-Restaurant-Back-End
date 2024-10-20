@@ -3,7 +3,7 @@ import express from 'express';
 import fs from 'fs/promises';
 import cron from 'node-cron';
 import path from 'path';
-import { open } from 'sqlite'; // Utilisation de sqlite pour les promesses
+import { open } from 'sqlite';
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
 
@@ -146,7 +146,7 @@ app.post('/api/commandes', async (req, res) => {
     }
 
     try {
-        const result = await db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', [mealName, quantity, tableNumber, '']);
+        const result = await db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', [mealName || 'unknown', quantity || 1, tableNumber || 0, '']);
         const orderNumber = generateFormattedOrderNumber(result.lastID);
         await db.run('UPDATE commandes SET orderNumber = ? WHERE id = ?', [orderNumber, result.lastID]);
         res.status(200).json({
