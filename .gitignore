@@ -1,3 +1,6 @@
 node_modules
 \frontend/.env
 .env
+
+# Ignorer la base de données SQLite
+database.db

@@ -1,7 +1,8 @@
 import cors from 'cors';
 import express from 'express';
-import fs from 'fs/promises';
 import path from 'path';
+import { open } from 'sqlite';
+import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -10,10 +11,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-//origin autorized
 const allowedOrigins = [
     'https://delta-restaurant-madagascar.vercel.app',
-    'https://delta-restaurant-madagascar.onrender.com'
+    'https://delta-restaurant-madagascar.onrender.com',
+    'http://localhost:5173'
 ];
 
 const corsOptions = {
@@ -32,8 +33,44 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-//api
-//menus
+const dbPromise = open({
+    filename: path.join(__dirname, 'database.db'),
+    driver: sqlite3.Database
+});
+
+(async () => {
+    const db = await dbPromise;
+    await db.exec(`
+        CREATE TABLE IF NOT EXISTS contacts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            email TEXT,
+            subject TEXT,
+            message TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS reservations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            firstname TEXT,
+            email TEXT,
+            phone TEXT,
+            dateTime TEXT,
+            guests INTEGER
+        );
+
+        CREATE TABLE IF NOT EXISTS commandes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mealName TEXT,
+            quantity INTEGER,
+            tableNumber INTEGER,
+            orderNumber TEXT
+        );
+    `);
+})();
+
+// api
+// Menus
 app.get('/api/menus', async (req, res) => {
     try {
         const data = await fs.readFile(path.resolve(__dirname, './data/data.json'), 'utf8');
@@ -45,81 +82,41 @@ app.get('/api/menus', async (req, res) => {
     }
 });
 
-//contacts
+// Contacts
 app.post('/api/contacts', async (req, res) => {
-    const contactData = req.body;
-
-    console.log('Données de contact reçues:', contactData);
-
+    const { name, email, message } = req.body;
     try {
-        const dataPath = path.join(__dirname, './data/contacts.json');
-        const existingData = await fs.readFile(dataPath, 'utf8');
-        const contacts = JSON.parse(existingData || '[]');
-        contacts.push(contactData);
-        await fs.writeFile(dataPath, JSON.stringify(contacts, null, 2));
-        res.status(200).json({ message: 'Message envoyé avec succès.'});
+        const db = await dbPromise;
+        await db.run('INSERT INTO contacts (name, email, message) VALUES (?, ?, ?)', [name, email, message]);
+        res.status(200).json({ message: 'Message envoyé avec succès.' });
     } catch (error) {
         console.error('Erreur lors de l\'envoi du message:', error);
-        res.status(500).json({ message: 'Erreur lors de l\'envoi du message.'});
+        res.status(500).json({ message: 'Erreur lors de l\'envoi du message.' });
     }
 });
 
-//reservations
+// Réservations
 app.post('/api/reservations', async (req, res) => {
-    const reservationData = req.body;
-
-    console.log('Réservation reçue:', req.body);
-
+    const { name, email, date, tableNumber } = req.body;
     try {
-        const dataPath = path.join(__dirname, './data/reservations.json');
-        const existingData = await fs.readFile(dataPath, 'utf8');
-        const reservations = JSON.parse(existingData || '[]');
-        reservations.push(reservationData);
-        await fs.writeFile(dataPath, JSON.stringify(reservations, null, 2));
+        const db = await dbPromise;
+        await db.run('INSERT INTO reservations (name, email, date, tableNumber) VALUES (?, ?, ?, ?)', [name, email, date, tableNumber]);
         res.status(200).json({ message: 'Réservation effectuée avec succès.' });
     } catch (error) {
+        console.error('Erreur lors de la réservation:', error);
         res.status(500).json({ message: 'Erreur lors de la réservation.' });
     }
 });
 
-//générer les numéros de commandes
-const generateOrderNumber = (orders) => {
-    const lastOrder = orders[orders.length - 1];
+// Générer un numéro de commande
+const generateOrderNumber = async () => {
+    const db = await dbPromise;
+    const lastOrder = await db.get('SELECT orderNumber FROM commandes ORDER BY id DESC LIMIT 1');
     const lastOrderNumber = lastOrder ? parseInt(lastOrder.orderNumber, 10) : 0;
     return (lastOrderNumber + 1).toString().padStart(6, '0');
 };
 
-const readOrders = async () => {
-    try {
-        const data = await fs.readFile(path.join(__dirname, './data/commandes.json'), 'utf8');
-        return JSON.parse(data || '[]');
-    } catch (error) {
-        console.error('Erreur lors de la lecture du fichier commande.json:', error.message);
-        return [];
-    }
-};
-
-const writeOrders = async (orders) => {
-    try {
-        await fs.writeFile(path.join(__dirname, './data/commandes.json'), JSON.stringify(orders, null, 2));
-    } catch (error) {
-        console.error('Erreur lors de l\'écriture dans le fichier commande.json:', error.message);
-    }
-};
-
-// api génération des numéros de commande
-app.get('/api/generateOrderNumber', async (req, res) => {
-    try {
-        const orders = await readOrders();  
-        const orderNumber = generateOrderNumber(orders);
-        res.status(200).json({ orderNumber });
-    } catch (error) {
-        console.error('Erreur lors de la génération du numéro de commande:', error.message);
-        res.status(500).json({ message: 'Erreur interne du serveur.' });
-    }
-});
-
-//commandes
+// Commandes
 app.post('/api/commandes', async (req, res) => {
     const { mealName, quantity, tableNumber } = req.body;
 
@@ -128,26 +125,16 @@ app.post('/api/commandes', async (req, res) => {
     }
 
     try {
-        const orders = await readOrders();
+        const db = await dbPromise;
+        const orderNumber = await generateOrderNumber();
 
-        const orderNumber = generateOrderNumber(orders);
+        await db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber, date) VALUES (?, ?, ?, ?, ?)', 
+            [mealName, quantity, tableNumber, orderNumber, new Date().toISOString()]);
 
-        const newOrder = {
-            mealName,
-            quantity,
-            tableNumber,
-            orderNumber,
-            date: new Date().toISOString(),
-        };
-
-        orders.push(newOrder);
-
-        await writeOrders(orders);
-
-        return res.status(200).json({ message: 'Commande reçue avec succès!', order: newOrder });
+        res.status(200).json({ message: 'Commande reçue avec succès!', order: { mealName, quantity, tableNumber, orderNumber } });
     } catch (error) {
-        console.error('Erreur lors du traitement de la commande:', error.message);
-        return res.status(500).json({ message: 'Erreur interne du serveur.' });
+        console.error('Erreur lors du traitement de la commande:', error);
+        res.status(500).json({ message: 'Erreur interne du serveur.' });
     }
 });
 
