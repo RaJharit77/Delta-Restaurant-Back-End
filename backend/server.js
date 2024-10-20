@@ -20,34 +20,39 @@ const dbPromise = open({
 });
 
 (async () => {
-    const db = await dbPromise;
-    await db.exec(`
+    try {
+        const db = await dbPromise;
+        await db.exec(`
         CREATE TABLE IF NOT EXISTS contacts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            email TEXT,
-            subject TEXT,
-            message TEXT
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            message TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS reservations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            firstname TEXT,
-            email TEXT,
-            phone TEXT,
-            dateTime TEXT,
-            guests INTEGER
+            firstname TEXT NOT NULL,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            dateTime TEXT NOT NULL,
+            guests INTEGER NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS commandes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            mealName TEXT,
-            quantity INTEGER,
-            tableNumber INTEGER,
-            orderNumber TEXT
+            mealName TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            tableNumber INTEGER NOT NULL,
+            orderNumber TEXT NOT NULL UNIQUE
         );
     `);
+        console.log('Tables created successfully');
+    } catch (error) {
+        console.error('Error creating tables:', error.message);
+    }
 })();
 
 const allowedOrigins = [
@@ -79,6 +84,7 @@ app.use(express.json());
 app.get('/api/menus', async (req, res) => {
     try {
         const data = await fs.readFile(path.resolve(__dirname, './data/data.json'), 'utf8');
+        console.log('Raw menu data:', data);
         const menuItems = JSON.parse(data);
         res.json(menuItems);
     } catch (error) {
@@ -89,10 +95,10 @@ app.get('/api/menus', async (req, res) => {
 
 // Contacts
 app.post('/api/contacts', async (req, res) => {
-    const { name, email, message } = req.body;
+    const { name, email, subject, message } = req.body;
     try {
         const db = await dbPromise;
-        await db.run('INSERT INTO contacts (name, email, message) VALUES (?, ?, ?)', [name, email, message]);
+        await db.run('INSERT INTO contacts (name, email, subject, message) VALUES (?, ?, ?, ?)', [name, email, subject, message]);
         res.status(200).json({ message: 'Message envoyé avec succès.' });
     } catch (error) {
         console.error('Erreur lors de l\'envoi du message:', error);
@@ -102,10 +108,10 @@ app.post('/api/contacts', async (req, res) => {
 
 // Réservations
 app.post('/api/reservations', async (req, res) => {
-    const { name, email, date, tableNumber } = req.body;
+    const { firstname, name, email, phone, dateTime, guests } = req.body;
     try {
         const db = await dbPromise;
-        await db.run('INSERT INTO reservations (name, email, date, tableNumber) VALUES (?, ?, ?, ?)', [name, email, date, tableNumber]);
+        await db.run('INSERT INTO reservations (firstname, name, email, phone, dateTime, guests) VALUES (?, ?, ?, ?, ?, ?)', [firstname, name, email, phone, dateTime, guests]);
         res.status(200).json({ message: 'Réservation effectuée avec succès.' });
     } catch (error) {
         console.error('Erreur lors de la réservation:', error);
@@ -113,15 +119,32 @@ app.post('/api/reservations', async (req, res) => {
     }
 });
 
-// Générer un numéro de commande
-const generateOrderNumber = async () => {
-    const db = await dbPromise;
-    const lastOrder = await db.get('SELECT orderNumber FROM commandes ORDER BY id DESC LIMIT 1');
-    const lastOrderNumber = lastOrder ? parseInt(lastOrder.orderNumber, 10) : 0;
-    return (lastOrderNumber + 1).toString().padStart(6, '0');
+//Gérer automatiquement le commande
+const generateFormattedOrderNumber = (id) => {
+    return id.toString().padStart(6, '0'); // Format de 6 chiffres
 };
 
-// Commandes
+// Générer un numéro de commande unique et l'envoyer au frontend
+app.get('/api/generateOrderNumber', async (req, res) => {
+    try {
+        const db = await dbPromise;
+        // Créer une nouvelle commande temporaire pour obtenir l'ID auto-incrémenté
+        const result = await db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', 
+            ['', 0, 0, '']); // Valeurs temporaires
+
+        // Utiliser l'ID pour générer un numéro de commande formaté
+        const orderNumber = generateFormattedOrderNumber(result.lastID);
+
+        // Mettre à jour la commande avec le numéro formaté
+        await db.run('UPDATE commandes SET orderNumber = ? WHERE id = ?', [orderNumber, result.lastID]);
+
+        res.status(200).json({ orderNumber });
+    } catch (error) {
+        console.error('Erreur lors de la génération du numéro de commande:', error);
+        res.status(500).json({ message: 'Erreur interne du serveur.' });
+    }
+});
+
 app.post('/api/commandes', async (req, res) => {
     const { mealName, quantity, tableNumber } = req.body;
 
@@ -131,13 +154,21 @@ app.post('/api/commandes', async (req, res) => {
 
     try {
         const db = await dbPromise;
-        const orderNumber = await generateOrderNumber();
 
-        await db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber, date) VALUES (?, ?, ?, ?, ?)', 
-            [mealName, quantity, tableNumber, orderNumber, new Date().toISOString()]);
+        // Insérer la commande sans numéro
+        const result = await db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', 
+            [mealName, quantity, tableNumber, '']); // Order number temporaire
 
-            console.log('Order number generated:', orderNumber);
-        res.status(200).json({ message: 'Commande reçue avec succès!', order: { mealName, quantity, tableNumber, orderNumber } });
+        // Utiliser l'ID auto-incrémenté pour générer un numéro de commande formaté
+        const orderNumber = generateFormattedOrderNumber(result.lastID);
+
+        // Mettre à jour la commande avec le numéro formaté
+        await db.run('UPDATE commandes SET orderNumber = ? WHERE id = ?', [orderNumber, result.lastID]);
+
+        res.status(200).json({
+            message: 'Commande reçue avec succès!',
+            order: { mealName, quantity, tableNumber, orderNumber }
+        });
     } catch (error) {
         console.error('Erreur lors du traitement de la commande:', error);
         res.status(500).json({ message: 'Erreur interne du serveur.' });
