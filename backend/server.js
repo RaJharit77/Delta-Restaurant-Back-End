@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs/promises';
+import cron from 'node-cron';
 import path from 'path';
 import { open } from 'sqlite';
 import sqlite3 from 'sqlite3';
@@ -174,6 +175,18 @@ app.post('/api/commandes', async (req, res) => {
         res.status(500).json({ message: 'Erreur interne du serveur.' });
     }
 });
+
+const resetOrderNumbers = async () => {
+    const db = await dbPromise;
+    await db.run('DELETE FROM commandes');  // Supprime les commandes de la journée passée
+    console.log('Numéros de commandes réinitialisés pour la nouvelle journée');
+};
+
+// Planifie la tâche pour se déclencher tous les jours à minuit
+cron.schedule('0 0 * * *', () => {
+    resetOrderNumbers();
+});
+
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
