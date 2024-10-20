@@ -3,7 +3,6 @@ import express from 'express';
 import fs from 'fs/promises';
 import cron from 'node-cron';
 import path from 'path';
-import { open } from 'sqlite';
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
 
@@ -14,6 +13,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const dbPath = process.env.DB_PATH || './database.db';
 
+// Configuration CORS
 const allowedOrigins = [
     'https://delta-restaurant-madagascar.vercel.app',
     'https://delta-restaurant-madagascar.onrender.com',
@@ -37,53 +37,52 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-let db;
-(async () => {
-    db = await open({
-        filename: dbPath,
-        driver: sqlite3.Database
-    });
+// SQLite database setup
+const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+        console.error('Erreur lors de l\'ouverture de la base de données:', err.message);
+    } else {
+        console.log('Connected to SQLite database.');
+        db.run(`
+            CREATE TABLE IF NOT EXISTS contacts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                email TEXT,
+                subject TEXT,
+                message TEXT
+            );
+        `);
 
-    await db.exec(`
-        CREATE TABLE IF NOT EXISTS contacts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name,
-            email,
-            subject TEXT,
-            message TEXT
-        );
-    `);
+        db.run(`
+            CREATE TABLE IF NOT EXISTS reservations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                firstname TEXT NOT NULL,
+                name TEXT,
+                email TEXT,
+                phone TEXT,
+                dateTime TEXT,
+                guests INTEGER
+            );
+        `);
 
-    await db.exec(`
-        CREATE TABLE IF NOT EXISTS reservations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            firstname TEXT NOT NULL,
-            name,
-            email TEXT,
-            phone TEXT,
-            dateTime TEXT,
-            guests INTEGER
-        );
-    `);
-
-    await db.exec(`
-        CREATE TABLE IF NOT EXISTS commandes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            mealName TEXT,
-            quantity INTEGER,
-            tableNumber INTEGER,
-            orderNumber TEXT
-        );
-    `);
-    console.log('Connected to SQLite database.');
-})();
+        db.run(`
+            CREATE TABLE IF NOT EXISTS commandes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                mealName TEXT,
+                quantity INTEGER,
+                tableNumber INTEGER,
+                orderNumber TEXT
+            );
+        `);
+    }
+});
 
 // Routes
+
 // Menus
 app.get('/api/menus', async (req, res) => {
     try {
         const data = await fs.readFile(path.resolve(__dirname, './data/data.json'), 'utf8');
-        console.log('Raw menu data:', data);
         const menuItems = JSON.parse(data);
         res.json(menuItems);
     } catch (error) {
@@ -95,9 +94,16 @@ app.get('/api/menus', async (req, res) => {
 // Contacts
 app.post('/api/contacts', async (req, res) => {
     const { name, email, subject, message } = req.body;
+    if (!name || !email || !message) {
+        return res.status(400).json({ message: 'Tous les champs sont requis.' });
+    }
+
     try {
-        await db.run('INSERT INTO contacts (name, email, subject, message) VALUES (?, ?, ?, ?)', [name, email, subject, message]);
-        res.status(200).json({ message: 'Message envoyé avec succès.' });
+        const result = await db.run(
+            'INSERT INTO contacts (name, email, subject, message) VALUES (?, ?, ?, ?)',
+            [name, email, subject, message]
+        );
+        res.status(200).json({ message: 'Message envoyé avec succès.', contactId: result.lastID });
     } catch (error) {
         console.error('Erreur lors de l\'envoi du message:', error);
         res.status(500).json({ message: 'Erreur lors de l\'envoi du message.' });
@@ -107,9 +113,16 @@ app.post('/api/contacts', async (req, res) => {
 // Réservations
 app.post('/api/reservations', async (req, res) => {
     const { firstname, name, email, phone, dateTime, guests } = req.body;
+    if (!firstname || !dateTime || !guests) {
+        return res.status(400).json({ message: 'Tous les champs sont requis.' });
+    }
+
     try {
-        await db.run('INSERT INTO reservations (firstname, name, email, phone, dateTime, guests) VALUES (?, ?, ?, ?, ?, ?)', [firstname, name, email, phone, dateTime, guests]);
-        res.status(200).json({ message: 'Réservation effectuée avec succès.' });
+        const result = await db.run(
+            'INSERT INTO reservations (firstname, name, email, phone, dateTime, guests) VALUES (?, ?, ?, ?, ?, ?)',
+            [firstname, name, email, phone, dateTime, guests]
+        );
+        res.status(200).json({ message: 'Réservation effectuée avec succès.', reservationId: result.lastID });
     } catch (error) {
         console.error('Erreur lors de la réservation:', error);
         res.status(500).json({ message: 'Erreur lors de la réservation.' });
@@ -136,13 +149,15 @@ app.get('/api/generateOrderNumber', async (req, res) => {
 // Commandes
 app.post('/api/commandes', async (req, res) => {
     const { mealName, quantity, tableNumber } = req.body;
-
     if (!mealName || !quantity || !tableNumber) {
         return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
     }
 
     try {
-        const result = await db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', [mealName || 'unknown', quantity || 1, tableNumber || 0, '']);
+        const result = await db.run(
+            'INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)',
+            [mealName, quantity, tableNumber, '']
+        );
         const orderNumber = generateFormattedOrderNumber(result.lastID);
         await db.run('UPDATE commandes SET orderNumber = ? WHERE id = ?', [orderNumber, result.lastID]);
         res.status(200).json({
@@ -155,7 +170,7 @@ app.post('/api/commandes', async (req, res) => {
     }
 });
 
-// Réinitialiser les numéros de commandes
+// Réinitialisation des numéros de commande quotidiennement
 const resetOrderNumbers = async () => {
     await db.run('DELETE FROM commandes');
     console.log('Numéros de commandes réinitialisés pour la nouvelle journée');
