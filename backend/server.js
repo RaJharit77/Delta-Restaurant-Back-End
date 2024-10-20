@@ -142,22 +142,18 @@ const generateFormattedOrderNumber = (id) => {
 
 app.get('/api/generateOrderNumber', async (req, res) => {
     try {
-        db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', ['', 0, 0, ''], function(err) {
-            if (err) {
-                throw new Error('Erreur lors de l\'insertion de la commande');
+        await db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', ['', 0, 0, '']);
+        const orderNumber = generateFormattedOrderNumber(this.lastID);
+        
+        // Mettez à jour le numéro de commande et gérez les erreurs
+        db.run('UPDATE commandes SET orderNumber = ? WHERE id = ?', [orderNumber, this.lastID], (updateErr) => {
+            if (updateErr) {
+                return res.status(500).json({ message: 'Erreur lors de la mise à jour du numéro de commande.', error: updateErr.message });
             }
-
-            const orderNumber = generateFormattedOrderNumber(this.lastID);
-            db.run('UPDATE commandes SET orderNumber = ? WHERE id = ?', [orderNumber, this.lastID], (updateErr) => {
-                if (updateErr) {
-                    throw new Error('Erreur lors de la mise à jour du numéro de commande');
-                }
-
-                res.status(200).json({ orderNumber });
-            });
+            res.status(200).json({ orderNumber });
         });
     } catch (error) {
-        console.error(error.message);
+        console.error('Erreur lors de la génération du numéro de commande:', error.message);
         res.status(500).json({ message: 'Erreur interne lors de la génération du numéro de commande.', error: error.message });
     }
 });
@@ -169,34 +165,25 @@ app.post('/api/commandes', async (req, res) => {
         return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
     }
 
-    try {
-        db.run(
-            'INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)',
-            [mealName, quantity, tableNumber, ''],
-            function(err) {
-                if (err) {
-                    console.error('Erreur lors de l\'insertion de la commande:', err.message);
-                    return res.status(500).json({ message: 'Erreur interne lors de la création de la commande.' });
-                }
-        
-                const orderNumber = generateFormattedOrderNumber(this.lastID);
-                db.run('UPDATE commandes SET orderNumber = ? WHERE id = ?', [orderNumber, this.lastID], (updateErr) => {
-                    if (updateErr) {
-                        console.error('Erreur lors de la mise à jour du numéro de commande:', updateErr.message);
-                        return res.status(500).json({ message: 'Erreur interne lors de la mise à jour du numéro de commande.' });
-                    }
-        
-                    res.status(200).json({
-                        message: 'Commande reçue avec succès!',
-                        order: { mealName, quantity, tableNumber, orderNumber }
-                    });
-                });
+    const orderNumber = generateFormattedOrderNumber(Date.now()); // Un numéro de commande basé sur l'heure
+
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', [mealName, quantity, tableNumber, orderNumber], function(err) {
+            if (err) {
+                console.error('Erreur lors de l\'insertion de la commande:', err.message);
+                return res.status(500).json({ message: 'Erreur interne lors de la création de la commande.' });
             }
-        );
-    } catch (error) {
-        console.error('Erreur lors du traitement de la commande:', error);
-        res.status(500).json({ message: 'Erreur interne du serveur.' });
-    }
+
+            db.run('COMMIT', (commitErr) => {
+                if (commitErr) {
+                    console.error('Erreur lors de la validation de la transaction:', commitErr.message);
+                    return res.status(500).json({ message: 'Erreur lors de la validation de la commande.' });
+                }
+                res.status(200).json({ message: 'Commande reçue avec succès!', order: { mealName, quantity, tableNumber, orderNumber } });
+            });
+        });
+    });
 });
 
 // Réinitialisation des numéros de commande quotidiennement
