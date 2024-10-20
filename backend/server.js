@@ -7,7 +7,6 @@ import { open } from 'sqlite';
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
 
-// Pour obtenir __dirname et __filename
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -15,7 +14,6 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const dbPath = process.env.DB_PATH || './database.db';
 
-// Configuration CORS
 const allowedOrigins = [
     'https://delta-restaurant-madagascar.vercel.app',
     'https://delta-restaurant-madagascar.onrender.com',
@@ -39,7 +37,6 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Initialiser la base de données avec sqlite et promises
 let db;
 (async () => {
     db = await open({
@@ -47,14 +44,13 @@ let db;
         driver: sqlite3.Database
     });
 
-    // Créer les tables si elles n'existent pas
     await db.exec(`
         CREATE TABLE IF NOT EXISTS contacts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT NOT NULL,
-            subject TEXT NOT NULL,
-            message TEXT NOT NULL
+            name,
+            email,
+            subject TEXT,
+            message TEXT
         );
     `);
 
@@ -62,21 +58,21 @@ let db;
         CREATE TABLE IF NOT EXISTS reservations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             firstname TEXT NOT NULL,
-            name TEXT NOT NULL,
-            email TEXT NOT NULL,
-            phone TEXT NOT NULL,
-            dateTime TEXT NOT NULL,
-            guests INTEGER NOT NULL
+            name,
+            email TEXT,
+            phone TEXT,
+            dateTime TEXT,
+            guests INTEGER
         );
     `);
 
     await db.exec(`
         CREATE TABLE IF NOT EXISTS commandes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            mealName TEXT NOT NULL,
-            quantity INTEGER NOT NULL,
-            tableNumber INTEGER NOT NULL,
-            orderNumber TEXT NOT NULL UNIQUE
+            mealName TEXT,
+            quantity INTEGER,
+            tableNumber INTEGER,
+            orderNumber TEXT
         );
     `);
     console.log('Connected to SQLite database.');
