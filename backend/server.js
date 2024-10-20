@@ -154,16 +154,29 @@ app.post('/api/commandes', async (req, res) => {
     }
 
     try {
-        const result = await db.run(
+        db.run(
             'INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)',
-            [mealName, quantity, tableNumber, '']
+            [mealName, quantity, tableNumber, ''],
+            function(err) {
+                if (err) {
+                    console.error('Erreur lors de l\'insertion de la commande:', err.message);
+                    return res.status(500).json({ message: 'Erreur interne lors de la création de la commande.' });
+                }
+        
+                const orderNumber = generateFormattedOrderNumber(this.lastID);
+                db.run('UPDATE commandes SET orderNumber = ? WHERE id = ?', [orderNumber, this.lastID], (updateErr) => {
+                    if (updateErr) {
+                        console.error('Erreur lors de la mise à jour du numéro de commande:', updateErr.message);
+                        return res.status(500).json({ message: 'Erreur interne lors de la mise à jour du numéro de commande.' });
+                    }
+        
+                    res.status(200).json({
+                        message: 'Commande reçue avec succès!',
+                        order: { mealName, quantity, tableNumber, orderNumber }
+                    });
+                });
+            }
         );
-        const orderNumber = generateFormattedOrderNumber(result.lastID);
-        await db.run('UPDATE commandes SET orderNumber = ? WHERE id = ?', [orderNumber, result.lastID]);
-        res.status(200).json({
-            message: 'Commande reçue avec succès!',
-            order: { mealName, quantity, tableNumber, orderNumber }
-        });
     } catch (error) {
         console.error('Erreur lors du traitement de la commande:', error);
         res.status(500).json({ message: 'Erreur interne du serveur.' });
