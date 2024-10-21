@@ -5,6 +5,7 @@ import cron from 'node-cron';
 import path from 'path';
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
+import { v4 as uuidv4 } from 'uuid';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,7 +80,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 mealName TEXT,
                 quantity INTEGER,
                 tableNumber INTEGER,
-                orderNumber TEXT
+                uniqueOrderId TEXT
             );
         `);
     }
@@ -143,60 +144,41 @@ const generateFormattedOrderNumber = (id) => {
 
 app.get('/api/generateOrderNumber', async (req, res) => {
     try {
-        db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', ['', 0, 0, ''], function(err) {
+        const uniqueOrderId = uuidv4();  // Génère un identifiant unique
+        db.run('INSERT INTO commandes (mealName, quantity, tableNumber, uniqueOrderId) VALUES (?, ?, ?, ?)', ['', 0, 0, uniqueOrderId], function(err) {
             if (err) {
-                return res.status(500).json({ message: 'Erreur lors de la génération du numéro de commande', error: err.message });
+                return res.status(500).json({ message: 'Erreur lors de la génération de l\'identifiant de commande', error: err.message });
             }
-            const orderNumber = generateFormattedOrderNumber(this.lastID);
-            db.run('UPDATE commandes SET orderNumber = ? WHERE id = ?', [orderNumber, this.lastID], (updateErr) => {
-                if (updateErr) {
-                    return res.status(500).json({ message: 'Erreur lors de la mise à jour du numéro de commande.', error: updateErr.message });
-                }
-                res.status(200).json({ orderNumber });
-            });
+            res.status(200).json({ uniqueOrderId });
         });
     } catch (error) {
-        res.status(500).json({ message: 'Erreur lors de la génération du numéro de commande', error: error.message });
+        res.status(500).json({ message: 'Erreur lors de la génération de l\'identifiant de commande', error: error.message });
     }
 });
 
 // Commandes
 app.post('/api/commandes', async (req, res) => {
     const { mealName, quantity, tableNumber } = req.body;
-    
+
     if (!mealName || !quantity || !tableNumber) {
         return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
     }
 
     try {
-        // Insère la commande avec les informations de base
+        const uniqueOrderId = uuidv4();  // Génère un identifiant unique
         db.run(
-            'INSERT INTO commandes (mealName, quantity, tableNumber) VALUES (?, ?, ?)',
-            [mealName, quantity, tableNumber],
+            'INSERT INTO commandes (mealName, quantity, tableNumber, uniqueOrderId) VALUES (?, ?, ?, ?)',
+            [mealName, quantity, tableNumber, uniqueOrderId],
             function (err) {
                 if (err) {
                     return res.status(500).json({ message: 'Erreur lors de l\'insertion de la commande', error: err.message });
                 }
 
-                // Génère le numéro de commande formaté en fonction de l'ID auto-incrémenté
-                const orderNumber = generateFormattedOrderNumber(this.lastID);
-
-                // Met à jour la commande avec le numéro formaté
-                db.run(
-                    'UPDATE commandes SET orderNumber = ? WHERE id = ?',
-                    [orderNumber, this.lastID],
-                    (updateErr) => {
-                        if (updateErr) {
-                            return res.status(500).json({ message: 'Erreur lors de la mise à jour du numéro de commande.', error: updateErr.message });
-                        }
-
-                        // Réponse au client avec le numéro de commande généré
-                        res.status(200).json({
-                            message: 'Commande reçue avec succès!',
-                            order: { mealName, quantity, tableNumber, orderNumber },
-                        });
-                    }
-                );
+                // Réponse au client avec l'identifiant de commande généré
+                res.status(200).json({
+                    message: 'Commande reçue avec succès!',
+                    order: { mealName, quantity, tableNumber, uniqueOrderId },
+                });
             }
         );
     } catch (error) {
