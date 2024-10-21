@@ -144,7 +144,7 @@ app.get('/api/generateOrderNumber', async (req, res) => {
     try {
         db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', ['', 0, 0, ''], function(err) {
             if (err) {
-                throw new Error('Erreur lors de la génération du numéro de commande');
+                return res.status(500).json({ message: 'Erreur lors de la génération du numéro de commande', error: err.message });
             }
             const orderNumber = generateFormattedOrderNumber(this.lastID);
             db.run('UPDATE commandes SET orderNumber = ? WHERE id = ?', [orderNumber, this.lastID], (updateErr) => {
