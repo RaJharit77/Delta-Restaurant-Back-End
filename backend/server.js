@@ -1,7 +1,8 @@
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs/promises';
-import { JSONFile, Low } from 'lowdb';
+import { Low } from 'lowdb';
+import { JSONFile } from 'lowdb/node';
 import cron from 'node-cron';
 import path from 'path';
 import sqlite3 from 'sqlite3';
