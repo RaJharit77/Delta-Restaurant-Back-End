@@ -37,50 +37,36 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Middleware pour gérer les erreurs
-app.use((req, res, next) => {
-    res.setTimeout(30000, () => {
-        res.status(504).json({ message: 'Le serveur a mis trop de temps à répondre.' });
-    });
-    next();
-});
-
 // SQLite database setup
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('Erreur lors de l\'ouverture de la base de données:', err.message);
     } else {
         console.log('Connected to SQLite database.');
-        db.run(`
-            CREATE TABLE IF NOT EXISTS contacts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
-                email TEXT,
-                subject TEXT,
-                message TEXT
-            );
-        `);
+        db.run(`CREATE TABLE IF NOT EXISTS contacts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            email TEXT,
+            subject TEXT,
+            message TEXT
+        );`);
 
-        db.run(`
-            CREATE TABLE IF NOT EXISTS reservations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                firstname TEXT NOT NULL,
-                name TEXT,
-                email TEXT,
-                phone TEXT,
-                dateTime TEXT,
-                guests INTEGER
-            );
-        `);
+        db.run(`CREATE TABLE IF NOT EXISTS reservations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firstname TEXT NOT NULL,
+            name TEXT,
+            email TEXT,
+            phone TEXT,
+            dateTime TEXT,
+            guests INTEGER
+        );`);
 
-        db.run(`
-            CREATE TABLE IF NOT EXISTS commandes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                mealName TEXT,
-                quantity INTEGER,
-                tableNumber INTEGER
-            );
-        `);
+        db.run(`CREATE TABLE IF NOT EXISTS commandes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mealName TEXT,
+            quantity INTEGER,
+            tableNumber INTEGER
+        );`);
     }
 });
 
@@ -149,10 +135,10 @@ app.post('/api/commandes', async (req, res) => {
             [mealName, quantity, tableNumber],
             function (err) {
                 if (err) {
+                    console.error('Erreur lors de l\'insertion de la commande:', err.message);
                     return res.status(500).json({ message: 'Erreur lors de l\'insertion de la commande', error: err.message });
                 }
 
-                // Réponse au client sans identifiant de commande
                 res.status(200).json({
                     message: 'Commande reçue avec succès!',
                     order: { mealName, quantity, tableNumber },
@@ -176,7 +162,6 @@ cron.schedule('0 0 * * *', () => {
     resetOrderNumbers();
 });
 
-// Démarrage du serveur
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
