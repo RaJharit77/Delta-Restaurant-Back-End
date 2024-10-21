@@ -123,28 +123,35 @@ app.post('/api/reservations', async (req, res) => {
 
 // Commandes
 app.post('/api/commandes', async (req, res) => {
-    const runQuery = (query, params = []) => {
-        return new Promise((resolve, reject) => {
-            db.run(query, params, function (err) {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(this);
-                }
-            });
-        });
-    };
-    
+    const { mealName, quantity, tableNumber } = req.body;
+
+    if (!mealName || !quantity || !tableNumber) {
+        return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
+    }
+
     try {
-        await runQuery(
-            'INSERT INTO commandes (mealName, quantity, tableNumber) VALUES (?, ?, ?)',
-            [mealName, quantity, tableNumber]
-        );
-        res.status(200).json({ message: 'Commande reçue avec succès!' });
+        const result = await new Promise((resolve, reject) => {
+            db.run(
+                'INSERT INTO commandes (mealName, quantity, tableNumber) VALUES (?, ?, ?)',
+                [mealName, quantity, tableNumber],
+                function (err) {
+                    if (err) {
+                        return reject(err);
+                    }
+                    resolve(this); // `this` refers to the context of db.run, which contains the lastID
+                }
+            );
+        });
+
+        res.status(200).json({
+            message: 'Commande reçue avec succès!',
+            orderId: result.lastID,
+            order: { mealName, quantity, tableNumber },
+        });
     } catch (error) {
         console.error('Erreur lors de la commande:', error.message);
         res.status(500).json({ message: 'Erreur lors de la commande', error: error.message });
-    }    
+    }
 });
 
 // Réinitialisation quotidienne des commandes
