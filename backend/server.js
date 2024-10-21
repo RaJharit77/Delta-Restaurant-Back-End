@@ -38,9 +38,11 @@ app.use(cors(corsOptions));
 app.use(express.json());
 
 // Middleware pour gérer les erreurs
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ message: 'Internal Server Error', error: err.message });
+app.use((req, res, next) => {
+    res.setTimeout(120000, () => {
+        res.status(504).json({ message: 'Le serveur a mis trop de temps à répondre.' });
+    });
+    next();
 });
 
 // SQLite database setup
@@ -84,7 +86,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
 });
 
 // Routes
-
 // Menus
 app.get('/api/menus', async (req, res) => {
     try {
