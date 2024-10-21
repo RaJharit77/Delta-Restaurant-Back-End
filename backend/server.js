@@ -137,7 +137,7 @@ app.post('/api/reservations', async (req, res) => {
 
 // Génération de numéro de commande
 const generateFormattedOrderNumber = (id) => {
-    return id.toString().padStart(6, '0');
+    return id.toString().padStart(6, '0');  // Formate le numéro de commande avec 6 chiffres
 };
 
 app.get('/api/generateOrderNumber', async (req, res) => {
@@ -161,42 +161,55 @@ app.get('/api/generateOrderNumber', async (req, res) => {
 
 // Commandes
 app.post('/api/commandes', async (req, res) => {
-    try {
-        const { mealName, quantity, tableNumber } = req.body;
-        if (!mealName || !quantity || !tableNumber) {
-            return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
-        }
+    const { mealName, quantity, tableNumber } = req.body;
+    
+    if (!mealName || !quantity || !tableNumber) {
+        return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
+    }
 
-        const orderNumber = generateFormattedOrderNumber(Date.now());
-        db.serialize(() => {
-            db.run('BEGIN TRANSACTION');
-            db.run('INSERT INTO commandes (mealName, quantity, tableNumber, orderNumber) VALUES (?, ?, ?, ?)', 
-                [mealName, quantity, tableNumber, orderNumber], function(err) {
+    try {
+        // Insère la commande avec les informations de base
+        db.run(
+            'INSERT INTO commandes (mealName, quantity, tableNumber) VALUES (?, ?, ?)',
+            [mealName, quantity, tableNumber],
+            function (err) {
                 if (err) {
-                    throw new Error('Erreur lors de l\'insertion de la commande');
+                    return res.status(500).json({ message: 'Erreur lors de l\'insertion de la commande', error: err.message });
                 }
 
-                db.run('COMMIT', (commitErr) => {
-                    if (commitErr) {
-                        throw new Error('Erreur lors de la validation de la transaction');
+                // Génère le numéro de commande formaté en fonction de l'ID auto-incrémenté
+                const orderNumber = generateFormattedOrderNumber(this.lastID);
+
+                // Met à jour la commande avec le numéro formaté
+                db.run(
+                    'UPDATE commandes SET orderNumber = ? WHERE id = ?',
+                    [orderNumber, this.lastID],
+                    (updateErr) => {
+                        if (updateErr) {
+                            return res.status(500).json({ message: 'Erreur lors de la mise à jour du numéro de commande.', error: updateErr.message });
+                        }
+
+                        // Réponse au client avec le numéro de commande généré
+                        res.status(200).json({
+                            message: 'Commande reçue avec succès!',
+                            order: { mealName, quantity, tableNumber, orderNumber },
+                        });
                     }
-                    res.status(200).json({ message: 'Commande reçue avec succès!', order: { mealName, quantity, tableNumber, orderNumber } });
-                });
-            });
-        });
+                );
+            }
+        );
     } catch (error) {
         console.error('Erreur lors de la commande:', error.message);
         res.status(500).json({ message: 'Erreur interne lors de la commande', error: error.message });
     }
 });
 
-// Réinitialisation des numéros de commande quotidiennement
 const resetOrderNumbers = async () => {
-    await db.run('DELETE FROM commandes');
+    await db.run('DELETE FROM commandes');  // Efface toutes les commandes de la journée
     console.log('Numéros de commandes réinitialisés pour la nouvelle journée');
 };
 
-// Planifie la tâche pour se déclencher tous les jours à minuit
+// Planifie la réinitialisation quotidienne à minuit
 cron.schedule('0 0 * * *', () => {
     resetOrderNumbers();
 });
