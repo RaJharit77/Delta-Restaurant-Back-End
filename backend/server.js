@@ -5,7 +5,6 @@ import cron from 'node-cron';
 import path from 'path';
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
-import { v4 as uuidv4 } from 'uuid';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,8 +78,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 mealName TEXT,
                 quantity INTEGER,
-                tableNumber INTEGER,
-                uniqueOrderId TEXT
+                tableNumber INTEGER
             );
         `);
     }
@@ -137,25 +135,6 @@ app.post('/api/reservations', async (req, res) => {
     }
 });
 
-// Génération de numéro de commande
-const generateFormattedOrderNumber = (id) => {
-    return id.toString().padStart(6, '0');  // Formate le numéro de commande avec 6 chiffres
-};
-
-app.get('/api/generateOrderNumber', async (req, res) => {
-    try {
-        const uniqueOrderId = uuidv4();  // Génère un identifiant unique
-        db.run('INSERT INTO commandes (mealName, quantity, tableNumber, uniqueOrderId) VALUES (?, ?, ?, ?)', ['', 0, 0, uniqueOrderId], function(err) {
-            if (err) {
-                return res.status(500).json({ message: 'Erreur lors de la génération de l\'identifiant de commande', error: err.message });
-            }
-            res.status(200).json({ uniqueOrderId });
-        });
-    } catch (error) {
-        res.status(500).json({ message: 'Erreur lors de la génération de l\'identifiant de commande', error: error.message });
-    }
-});
-
 // Commandes
 app.post('/api/commandes', async (req, res) => {
     const { mealName, quantity, tableNumber } = req.body;
@@ -165,19 +144,18 @@ app.post('/api/commandes', async (req, res) => {
     }
 
     try {
-        const uniqueOrderId = uuidv4();  // Génère un identifiant unique
         db.run(
-            'INSERT INTO commandes (mealName, quantity, tableNumber, uniqueOrderId) VALUES (?, ?, ?, ?)',
-            [mealName, quantity, tableNumber, uniqueOrderId],
+            'INSERT INTO commandes (mealName, quantity, tableNumber) VALUES (?, ?, ?)',
+            [mealName, quantity, tableNumber],
             function (err) {
                 if (err) {
                     return res.status(500).json({ message: 'Erreur lors de l\'insertion de la commande', error: err.message });
                 }
 
-                // Réponse au client avec l'identifiant de commande généré
+                // Réponse au client sans identifiant de commande
                 res.status(200).json({
                     message: 'Commande reçue avec succès!',
-                    order: { mealName, quantity, tableNumber, uniqueOrderId },
+                    order: { mealName, quantity, tableNumber },
                 });
             }
         );
@@ -187,9 +165,10 @@ app.post('/api/commandes', async (req, res) => {
     }
 });
 
+// Réinitialisation quotidienne des commandes
 const resetOrderNumbers = async () => {
     await db.run('DELETE FROM commandes');  // Efface toutes les commandes de la journée
-    console.log('Numéros de commandes réinitialisés pour la nouvelle journée');
+    console.log('Commandes réinitialisées pour la nouvelle journée');
 };
 
 // Planifie la réinitialisation quotidienne à minuit
