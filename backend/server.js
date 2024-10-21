@@ -13,7 +13,6 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const dbPath = process.env.DB_PATH || './database.db';
 
-// Configuration CORS
 const allowedOrigins = [
     'https://delta-restaurant-madagascar.vercel.app',
     'https://delta-restaurant-madagascar.onrender.com',
@@ -37,7 +36,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// SQLite database setup
+// SQLite database
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('Erreur lors de l\'ouverture de la base de données:', err.message);
@@ -64,6 +63,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
         db.run(`CREATE TABLE IF NOT EXISTS commandes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             mealName TEXT,
+            softDrink TEXT,
             quantity INTEGER,
             tableNumber INTEGER
         );`);
@@ -123,22 +123,22 @@ app.post('/api/reservations', async (req, res) => {
 
 // Commandes
 app.post('/api/commandes', async (req, res) => {
-    const { mealName, quantity, tableNumber } = req.body;
+    const { mealName, softDrink, quantity, tableNumber } = req.body;
 
-    if (!mealName || !quantity || !tableNumber) {
+    if (!mealName || !softDrink || !quantity || !tableNumber) {
         return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
     }
 
     try {
         const result = await new Promise((resolve, reject) => {
             db.run(
-                'INSERT INTO commandes (mealName, quantity, tableNumber) VALUES (?, ?, ?)',
-                [mealName, quantity, tableNumber],
+                'INSERT INTO commandes (mealName, softDrink, quantity, tableNumber) VALUES (?, ?, ?, ?)',
+                [mealName, softDrink, quantity, tableNumber],
                 function (err) {
                     if (err) {
                         return reject(err);
                     }
-                    resolve(this); // `this` refers to the context of db.run, which contains the lastID
+                    resolve(this);
                 }
             );
         });
@@ -146,7 +146,7 @@ app.post('/api/commandes', async (req, res) => {
         res.status(200).json({
             message: 'Commande reçue avec succès!',
             orderId: result.lastID,
-            order: { mealName, quantity, tableNumber },
+            order: { mealName, softDrink, quantity, tableNumber },
         });
     } catch (error) {
         console.error('Erreur lors de la commande:', error.message);
