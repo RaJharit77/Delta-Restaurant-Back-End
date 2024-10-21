@@ -66,11 +66,15 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 // Initialisation de la base de données lowdb pour les commandes
 const initLowDB = async () => {
-    const file = path.join(__dirname, 'db.json');
+    const file = path.join(__dirname, './data/db.json');
     const adapter = new JSONFile(file);
     const lowdb = new Low(adapter);
     await lowdb.read();
-    lowdb.data = lowdb.data || { commandes: [] }; // Initialiser avec une collection vide si le fichier est vide
+
+    if (!lowdb.data) {
+        lowdb.data = { commandes: [] };
+    }
+
     await lowdb.write();
     return lowdb;
 };
