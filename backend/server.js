@@ -39,7 +39,7 @@ app.use(express.json());
 
 // Middleware pour gérer les erreurs
 app.use((req, res, next) => {
-    res.setTimeout(120000, () => {
+    res.setTimeout(30000, () => {
         res.status(504).json({ message: 'Le serveur a mis trop de temps à répondre.' });
     });
     next();
