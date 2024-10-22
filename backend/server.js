@@ -16,7 +16,8 @@ const dbPath = process.env.DB_PATH || './database.db';
 
 const allowedOrigins = [
     'https://delta-restaurant-madagascar.vercel.app',
-    'https://delta-restaurant-madagascar.onrender.com'
+    'https://delta-restaurant-madagascar.onrender.com',
+    'http://localhost:5173'
 ];
 
 const corsOptions = {
