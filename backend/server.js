@@ -88,7 +88,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 // Routes
 // Menus
-
 app.get('/api/menus', async (req, res) => {
     try {
         const data = await fs.readFile(path.resolve(__dirname, './data/data.json'), 'utf8');
