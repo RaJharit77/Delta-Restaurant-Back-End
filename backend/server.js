@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs/promises';
+import { JSONFile, Low } from 'lowdb';
 import cron from 'node-cron';
 import path from 'path';
 import { open } from 'sqlite';
@@ -10,6 +11,10 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
+
+const dbFile = path.resolve(__dirname, './data/db.json');
+const adapter = new JSONFile(dbFile);
+const dbs = new Low(adapter);
 
 const PORT = process.env.PORT || 5000;
 const dbPath = process.env.DB_PATH || './database.db';
@@ -42,6 +47,14 @@ app.use((req, res, next) => {
     next();
 });
 
+const initDbs = async () => {
+    await db.read();
+    dbs.data = dbs.data || { commandes: [] };
+    await db.write();
+};
+
+initDbs().then(() => console.log('Lowdb initialized.'));
+
 // SQLite Database Initialization
 let db;
 const initDb = async () => {
@@ -69,16 +82,6 @@ const initDb = async () => {
             phone TEXT,
             dateTime TEXT,
             guests INTEGER
-        );
-    `);
-
-    await db.exec(`
-        CREATE TABLE IF NOT EXISTS commandes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            mealName TEXT,
-            softDrink TEXT,
-            quantity INTEGER,
-            tableNumber TEXT
         );
     `);
 };
@@ -137,22 +140,25 @@ app.post('/api/reservations', async (req, res) => {
 // Commandes
 app.post('/api/commandes', async (req, res) => {
     const { mealName, softDrink, quantity, tableNumber } = req.body;
+    if (!mealName || !softDrink || !quantity || !tableNumber) {
+        return res.status(400).json({ message: 'Tous les champs sont requis.' });
+    }
     try {
-        const result = await db.run(
-            `INSERT INTO commandes (mealName, softDrink, quantity, tableNumber) VALUES (?, ?, ?, ?)`,
-            [mealName, softDrink, quantity, tableNumber]
-        );
-        res.json({ order: { mealName, softDrink, quantity, tableNumber } });
+        const newOrder = { id: Date.now(), mealName, softDrink, quantity, tableNumber };
+        db.data.commandes.push(newOrder);
+        await db.write();
+        res.status(200).json({ order: newOrder });
     } catch (error) {
-        console.error('Erreur lors de l\'ajout de la commande:', error.message);
-        res.status(500).json({ error: 'Erreur lors de la commande' });
+        console.error('Erreur lors de l\'ajout de la commande:', error);
+        res.status(500).json({ message: 'Erreur lors de la commande.' });
     }
 });
 
 // Réinitialisation quotidienne des commandes
 const resetOrderNumbers = async () => {
     try {
-        await db.run('DELETE FROM commandes');
+        db.data.commandes = [];
+        await db.write();
         console.log('Commandes réinitialisées pour la nouvelle journée');
     } catch (error) {
         console.error('Erreur lors de la réinitialisation des commandes:', error.message);
