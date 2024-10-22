@@ -14,7 +14,7 @@ const app = express();
 
 const dbFile = path.resolve(__dirname, './data/db.json');
 const adapter = new JSONFile(dbFile);
-const dbs = new Low(adapter);  // Low instantiates with the adapter
+const dbs = new Low(adapter);
 
 const PORT = process.env.PORT || 5000;
 const dbPath = process.env.DB_PATH || './database.db';
@@ -34,7 +34,7 @@ const corsOptions = {
             callback(new Error('Not allowed by CORS'));
         }
     },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'UPDATE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
 };
@@ -52,8 +52,6 @@ app.use((req, res, next) => {
     console.log(`${req.method} ${req.url} - ${new Date().toISOString()}`);
     next();
 });
-
-app.options('*', cors(corsOptions));
 
 // Initialize LowDB
 const initDbs = async () => {
