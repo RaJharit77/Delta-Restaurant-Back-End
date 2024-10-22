@@ -40,23 +40,28 @@ app.use((req, res, next) => {
     next();
 });
 
+const sequelize = new Sequelize('delta_restaurant', 'username', 'password', {
+    host: 'localhost',
+    dialect: 'postgres',
+});
+
+const Commande = sequelize.define('Commande', {
+    mealName: { type: DataTypes.STRING, allowNull: false },
+    softDrink: { type: DataTypes.STRING, allowNull: false },
+    quantity: { type: DataTypes.INTEGER, allowNull: false },
+    tableNumber: { type: DataTypes.STRING, allowNull: false }
+});
+
+sequelize.sync({ force: false }).then(() => {
+    console.log('Tables synchronized');
+}).catch((error) => console.error('Erreur de synchronisation:', error));
+
 // SQLite database
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('Erreur lors de l\'ouverture de la base de données:', err.message);
     } else {
         console.log('Connected to SQLite database.');
-        db.run(`CREATE TABLE IF NOT EXISTS commandes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            mealName TEXT,
-            softDrink TEXT,
-            quantity INTEGER,
-            tableNumber TEXT
-        );`, (err) => {
-            if (err) {
-                console.error('Erreur lors de la création de la table commandes:', err.message);
-            }
-        });
         db.run(`CREATE TABLE IF NOT EXISTS contacts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
@@ -134,31 +139,27 @@ app.post('/api/reservations', async (req, res) => {
 });
 
 // Commandes
-app.post('/api/commandes', (req, res) => {
-    console.log('Requête reçue:', req.body);
-    const { mealName, softDrink, quantity, tableNumber } = req.body;
-    const query = `INSERT INTO commandes (mealName, softDrink, quantity, tableNumber) VALUES (?, ?, ?, ?)`;
-    db.run(query, [mealName, softDrink, quantity, tableNumber], function (err) {
-        if (err) {
-            console.error('Erreur lors de l\'ajout de la commande:', err.message);
-            return res.status(500).json({ error: 'Erreur lors de la commande' });
-        }
-        res.json({ order: { mealName, softDrink, quantity, tableNumber } });
-    });
+app.post('/api/commandes', async (req, res) => {
+    try {
+        const { mealName, softDrink, quantity, tableNumber } = req.body;
+        const commande = await Commande.create({ mealName, softDrink, quantity, tableNumber });
+        res.status(201).json({ message: 'Commande créée avec succès', commande });
+    } catch (error) {
+        console.error('Erreur lors de la création de la commande:', error);
+        res.status(500).json({ message: 'Erreur interne du serveur' });
+    }
 });
 
 // Réinitialisation quotidienne des commandes
 const resetOrderNumbers = async () => {
-    db.run('DELETE FROM commandes', (err) => {
-        if (err) {
-            console.error('Erreur lors de la réinitialisation des commandes:', err.message);
-        } else {
-            console.log('Commandes réinitialisées pour la nouvelle journée');
-        }
-    });
+    try {
+        await Commande.destroy({ where: {} });
+        console.log('Commandes réinitialisées pour la nouvelle journée');
+    } catch (error) {
+        console.error('Erreur lors de la réinitialisation des commandes:', error);
+    }
 };
 
-// Planifie la réinitialisation quotidienne à minuit
 cron.schedule('0 0 * * *', () => {
     resetOrderNumbers();
 });
