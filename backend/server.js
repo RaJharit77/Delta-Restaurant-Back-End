@@ -11,10 +11,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 
-const dbFile = path.resolve(__dirname, './db.json');
-const adapter = new JSONFile(dbFile);
-const dbs = new Low(adapter);
-
 const PORT = process.env.PORT || 5000;
 const dbPath = process.env.DB_PATH || './database.db';
 
@@ -53,7 +49,7 @@ app.use((req, res, next) => {
 
 // Initialize LowDB
 const initLowDB = async () => {
-    const file = path.join(__dirname, 'db.json');
+    const file = path.join(__dirname, './db.json');
     const adapter = new JSONFile(file);
     const lowdb = new Low(adapter);
     await lowdb.read();
@@ -96,6 +92,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 app.get('/api/menus', async (req, res) => {
     try {
         const data = await fs.readFile(path.resolve(__dirname, './data/data.json'), 'utf8');
+        console.log('File read successfully:', data);
         const menuItems = JSON.parse(data);
         res.json(menuItems);
     } catch (error) {
