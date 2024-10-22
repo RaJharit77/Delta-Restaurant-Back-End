@@ -177,6 +177,7 @@ app.post('/api/commandes', async (req, res) => {
             softDrink,
             quantity,
             tableNumber,
+            orderNumber,
             date: new Date().toISOString(),
         };
 
