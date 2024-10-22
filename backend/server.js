@@ -56,9 +56,9 @@ app.use((req, res, next) => {
 app.options('*', cors(corsOptions)); 
 
 const initDbs = async () => {
-    await db.read();
+    await dbs.read();
     dbs.data = dbs.data || { commandes: [] };
-    await db.write();
+    await dbs.write();
 };
 
 initDbs().then(() => console.log('Lowdb initialized.'));
@@ -152,12 +152,12 @@ app.post('/api/commandes', async (req, res) => {
         return res.status(400).json({ message: 'Tous les champs sont requis.' });
     }
     try {
-        if (!db.data.commandes) {
-            db.data.commandes = [];
+        if (!dbs.data.commandes) {
+            dbs.data.commandes = [];
         }
         const newOrder = { id: Date.now(), mealName, softDrink, quantity, tableNumber };
-        db.data.commandes.push(newOrder);
-        await db.write();
+        dbs.data.commandes.push(newOrder);
+        await dbs.write();
         res.status(200).json({ order: newOrder });
     } catch (error) {
         console.error('Erreur lors de l\'ajout de la commande:', error);
@@ -168,8 +168,8 @@ app.post('/api/commandes', async (req, res) => {
 // Réinitialisation quotidienne des commandes
 const resetOrderNumbers = async () => {
     try {
-        db.data.commandes = [];
-        await db.write();
+        dbs.data.commandes = [];
+        await dbs.write();
         console.log('Commandes réinitialisées pour la nouvelle journée');
     } catch (error) {
         console.error('Erreur lors de la réinitialisation des commandes:', error.message);
