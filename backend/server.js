@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs/promises';
+import cron from 'node-cron';
 import path from 'path';
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
@@ -191,6 +192,16 @@ app.post('/api/commandes', async (req, res) => {
         return res.status(500).json({ message: 'Erreur interne du serveur.' });
     }
 });
+
+const resetOrderNumber = async () => {
+    const initialOrderNumber = '000001'; // Set your initial order number
+    const orders = await readOrders();
+    await writeOrders([]); // Clear the existing orders
+    console.log(`Order number reset to ${initialOrderNumber}`);
+};
+
+// Schedule a job to run at 23:59 every day
+cron.schedule('59 23 * * *', resetOrderNumber);
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
