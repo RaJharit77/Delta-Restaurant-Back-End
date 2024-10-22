@@ -152,13 +152,16 @@ app.post('/api/commandes', async (req, res) => {
         return res.status(400).json({ message: 'Tous les champs sont requis.' });
     }
     try {
+        if (!db.data.commandes) {
+            db.data.commandes = [];
+        }
         const newOrder = { id: Date.now(), mealName, softDrink, quantity, tableNumber };
         db.data.commandes.push(newOrder);
         await db.write();
         res.status(200).json({ order: newOrder });
     } catch (error) {
         console.error('Erreur lors de l\'ajout de la commande:', error);
-        res.status(500).json({ message: 'Erreur lors de la commande.' });
+        res.status(500).json({ message: 'Erreur lors de la commande.', error: error.message });
     }
 });
 
