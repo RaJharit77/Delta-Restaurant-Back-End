@@ -53,13 +53,17 @@ app.use((req, res, next) => {
 });
 
 // Initialize LowDB
-const initDbs = async () => {
-    await dbs.read();
-    dbs.data = dbs.data || { commandes: [] };
-    await dbs.write();
+const initLowDB = async () => {
+    const file = path.join(__dirname, 'db.json');
+    const adapter = new JSONFile(file);
+    const lowdb = new Low(adapter);
+    await lowdb.read();
+    lowdb.data = lowdb.data || { commandes: [] }; // Initialiser avec une collection vide si le fichier est vide
+    await lowdb.write();
+    return lowdb;
 };
 
-initDbs().then(() => console.log('Lowdb initialized.'));
+const lowdb = await initLowDB();
 
 // SQLite Database Initialization
 const db = new sqlite3.Database(dbPath, (err) => {
@@ -138,34 +142,46 @@ app.post('/api/reservations', async (req, res) => {
 });
 
 // Commandes
+
 app.post('/api/commandes', async (req, res) => {
     const { mealName, softDrink, quantity, tableNumber } = req.body;
+
     if (!mealName || !softDrink || !quantity || !tableNumber) {
-        return res.status(400).json({ message: 'Tous les champs sont requis.' });
+        return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
     }
+
     try {
-        if (!dbs.data.commandes) {
-            dbs.data.commandes = [];
-        }
-        const newOrder = { id: Date.now(), mealName, softDrink, quantity, tableNumber };
-        dbs.data.commandes.push(newOrder);
-        await dbs.write();
-        res.status(200).json({ order: newOrder });
+        await lowdb.read(); // Lire les données actuelles
+        const newOrderId = lowdb.data.commandes.length + 1;
+
+        const newOrder = {
+            id: newOrderId,
+            mealName,
+            softDrink,
+            quantity,
+            tableNumber,
+        };
+
+        lowdb.data.commandes.push(newOrder); // Ajouter la nouvelle commande
+        await lowdb.write(); // Sauvegarder dans le fichier JSON
+
+        res.status(200).json({
+            message: 'Commande reçue avec succès!',
+            orderId: newOrderId,
+            order: newOrder,
+        });
     } catch (error) {
-        console.error('Erreur lors de l\'ajout de la commande:', error);
-        res.status(500).json({ message: 'Erreur lors de la commande.', error: error.message });
+        console.error('Erreur lors de la commande:', error.message);
+        res.status(500).json({ message: 'Erreur lors de la commande', error: error.message });
     }
 });
 
 // Réinitialisation quotidienne des commandes
 const resetOrderNumbers = async () => {
-    try {
-        dbs.data.commandes = [];
-        await dbs.write();
-        console.log('Commandes réinitialisées pour la nouvelle journée');
-    } catch (error) {
-        console.error('Erreur lors de la réinitialisation des commandes:', error.message);
-    }
+    await initLowDB(); // Réinitialiser la base de données lowdb pour les commandes
+    lowdb.data.commandes = [];
+    await lowdb.write();
+    console.log('Commandes réinitialisées pour la nouvelle journée');
 };
 
 // Planifie la réinitialisation quotidienne à minuit
