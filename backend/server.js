@@ -44,6 +44,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
         console.error('Erreur lors de l\'ouverture de la base de données:', err.message);
     } else {
         console.log('Connected to SQLite database.');
+        db.run(`CREATE TABLE commandes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mealName TEXT,
+            softDrink TEXT,
+            quantity INTEGER,
+            tableNumber TEXT
+        )`);
+
         db.run(`CREATE TABLE IF NOT EXISTS contacts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
@@ -132,45 +140,22 @@ app.post('/api/reservations', async (req, res) => {
     }
 });
 
-// Commandes avec lowdb
-app.post('/api/commandes', async (req, res) => {
+// Commandes 
+app.post('/api/commandes', (req, res) => {
     const { mealName, softDrink, quantity, tableNumber } = req.body;
-
-    if (!mealName || !softDrink || !quantity || !tableNumber) {
-        return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
-    }
-
-    try {
-        await lowdb.read(); // Lire les données actuelles
-        const newOrderId = lowdb.data.commandes.length + 1;
-
-        const newOrder = {
-            id: newOrderId,
-            mealName,
-            softDrink,
-            quantity,
-            tableNumber,
-        };
-
-        lowdb.data.commandes.push(newOrder); // Ajouter la nouvelle commande
-        await lowdb.write(); // Sauvegarder dans le fichier JSON
-
-        res.status(200).json({
-            message: 'Commande reçue avec succès!',
-            orderId: newOrderId,
-            order: newOrder,
-        });
-    } catch (error) {
-        console.error('Erreur lors de la commande:', error.message);
-        res.status(500).json({ message: 'Erreur lors de la commande', error: error.message });
-    }
+    const query = `INSERT INTO commandes (mealName, softDrink, quantity, tableNumber) VALUES (?, ?, ?, ?)`;
+    db.run(query, [mealName, softDrink, quantity, tableNumber], function (err) {
+        if (err) {
+            res.status(500).json({ error: 'Failed to save order' });
+            return;
+        }
+        res.json({ order: { mealName, softDrink, quantity, tableNumber } });
+    });
 });
 
 // Réinitialisation quotidienne des commandes
 const resetOrderNumbers = async () => {
-    await initLowDB(); // Réinitialiser la base de données lowdb pour les commandes
-    lowdb.data.commandes = [];
-    await lowdb.write();
+    await db.run('DELETE FROM commandes');
     console.log('Commandes réinitialisées pour la nouvelle journée');
 };
 
