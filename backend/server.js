@@ -8,17 +8,14 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 const dbPath = process.env.DB_PATH || './database.db';
-
 const allowedOrigins = [
     'https://delta-restaurant-madagascar.vercel.app',
     'https://delta-restaurant-madagascar.onrender.com',
     'http://localhost:5173'
 ];
-
 const corsOptions = {
     origin: (origin, callback) => {
         if (allowedOrigins.includes(origin) || !origin) {
@@ -42,22 +39,28 @@ const db = new sqlite3.Database(dbPath, (err) => {
         console.error('Erreur lors de l\'ouverture de la base de données:', err.message);
     } else {
         console.log('Connected to SQLite database.');
-        db.run(`CREATE TABLE commandes (
+        db.run(`CREATE TABLE IF NOT EXISTS commandes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             mealName TEXT,
             softDrink TEXT,
             quantity INTEGER,
             tableNumber TEXT
-        )`);
-
+        );`, (err) => {
+            if (err) {
+                console.error('Erreur lors de la création de la table commandes:', err.message);
+            }
+        });
         db.run(`CREATE TABLE IF NOT EXISTS contacts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
             email TEXT,
             subject TEXT,
             message TEXT
-        );`);
-
+        );`, (err) => {
+            if (err) {
+                console.error('Erreur lors de la création de la table contacts:', err.message);
+            }
+        });
         db.run(`CREATE TABLE IF NOT EXISTS reservations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             firstname TEXT NOT NULL,
@@ -66,7 +69,11 @@ const db = new sqlite3.Database(dbPath, (err) => {
             phone TEXT,
             dateTime TEXT,
             guests INTEGER
-        );`);
+        );`, (err) => {
+            if (err) {
+                console.error('Erreur lors de la création de la table reservations:', err.message);
+            }
+        });
     }
 });
 
@@ -89,7 +96,6 @@ app.post('/api/contacts', async (req, res) => {
     if (!name || !email || !message) {
         return res.status(400).json({ message: 'Tous les champs sont requis.' });
     }
-
     try {
         const result = await db.run(
             'INSERT INTO contacts (name, email, subject, message) VALUES (?, ?, ?, ?)',
@@ -108,7 +114,6 @@ app.post('/api/reservations', async (req, res) => {
     if (!firstname || !dateTime || !guests) {
         return res.status(400).json({ message: 'Tous les champs sont requis.' });
     }
-
     try {
         const result = await db.run(
             'INSERT INTO reservations (firstname, name, email, phone, dateTime, guests) VALUES (?, ?, ?, ?, ?, ?)',
@@ -121,12 +126,13 @@ app.post('/api/reservations', async (req, res) => {
     }
 });
 
-// Commandes 
+// Commandes
 app.post('/api/commandes', (req, res) => {
     const { mealName, softDrink, quantity, tableNumber } = req.body;
     const query = `INSERT INTO commandes (mealName, softDrink, quantity, tableNumber) VALUES (?, ?, ?, ?)`;
     db.run(query, [mealName, softDrink, quantity, tableNumber], function (err) {
         if (err) {
+            console.error('Erreur lors de l\'ajout de la commande:', err.message);
             res.status(500).json({ error: 'Failed to save order' });
             return;
         }
@@ -136,8 +142,13 @@ app.post('/api/commandes', (req, res) => {
 
 // Réinitialisation quotidienne des commandes
 const resetOrderNumbers = async () => {
-    await db.run('DELETE FROM commandes');
-    console.log('Commandes réinitialisées pour la nouvelle journée');
+    db.run('DELETE FROM commandes', (err) => {
+        if (err) {
+            console.error('Erreur lors de la réinitialisation des commandes:', err.message);
+        } else {
+            console.log('Commandes réinitialisées pour la nouvelle journée');
+        }
+    });
 };
 
 // Planifie la réinitialisation quotidienne à minuit
