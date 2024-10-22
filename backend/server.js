@@ -186,7 +186,13 @@ app.post('/api/commandes', async (req, res) => {
 
         await writeOrders(orders);
 
-        return res.status(200).json({ message: 'Commande reçue avec succès!', order: newOrder });
+        const nextOrderNumber = generateOrderNumber(orders);
+
+        return res.status(200).json({
+            message: 'Commande reçue avec succès!',
+            order: newOrder,
+            nextOrderNumber
+        });
     } catch (error) {
         console.error('Erreur lors du traitement de la commande:', error.message);
         return res.status(500).json({ message: 'Erreur interne du serveur.' });
