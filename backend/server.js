@@ -1,8 +1,6 @@
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs/promises';
-import { JSONFile, Low } from 'lowdb';
-import cron from 'node-cron';
 import path from 'path';
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
@@ -51,7 +49,7 @@ app.use((req, res, next) => {
 app.options('*', cors()); 
 
 // Initialize LowDB
-const initLowDB = async () => {
+/**const initLowDB = async () => {
     const file = path.join(__dirname, './db.json');
     const adapter = new JSONFile(file);
     const lowdb = new Low(adapter);
@@ -61,7 +59,7 @@ const initLowDB = async () => {
     return lowdb;
 };
 
-const lowdb = await initLowDB();
+const lowdb = await initLowDB();*/
 
 // SQLite Database Initialization
 const db = new sqlite3.Database(dbPath, (err) => {
@@ -140,8 +138,38 @@ app.post('/api/reservations', async (req, res) => {
 });
 
 // Commandes
-
 app.post('/api/commandes', async (req, res) => {
+    const { mealName, quantity, tableNumber } = req.body;
+
+    if (!mealName || !quantity || !tableNumber) {
+        return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
+    }
+
+    try {
+        const orders = await readOrders();
+
+        const orderNumber = generateOrderNumber(orders);
+
+        const newOrder = {
+            mealName,
+            softDrink,
+            quantity,
+            tableNumber,
+            date: new Date().toISOString(),
+        };
+
+        orders.push(newOrder);
+
+        await writeOrders(orders);
+
+        return res.status(200).json({ message: 'Commande reçue avec succès!', order: newOrder });
+    } catch (error) {
+        console.error('Erreur lors du traitement de la commande:', error.message);
+        return res.status(500).json({ message: 'Erreur interne du serveur.' });
+    }
+});
+
+/**app.post('/api/commandes', async (req, res) => {
     const { mealName, softDrink, quantity, tableNumber } = req.body;
 
     if (!mealName || !softDrink || !quantity || !tableNumber) {
@@ -185,7 +213,7 @@ const resetOrderNumbers = async () => {
 // Planifie la réinitialisation quotidienne à minuit
 cron.schedule('0 0 * * *', () => {
     resetOrderNumbers();
-});
+});*/
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
