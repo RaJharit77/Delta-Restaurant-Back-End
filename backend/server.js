@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 
-const dbFile = path.resolve(__dirname, './data/db.json');
+const dbFile = path.resolve(__dirname, './db.json');
 const adapter = new JSONFile(dbFile);
 const dbs = new Low(adapter);
 
@@ -101,6 +101,9 @@ app.get('/api/menus', async (req, res) => {
     try {
         const data = await fs.readFile(path.resolve(__dirname, './data/data.json'), 'utf8');
         const menuItems = JSON.parse(data);
+        if (!menuItems || menuItems.length === 0) {
+            return res.status(404).json({ message: 'Menu items not found.' });
+        }
         res.json(menuItems);
     } catch (error) {
         console.error('Error reading menu data:', error.message);
