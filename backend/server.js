@@ -14,7 +14,7 @@ const app = express();
 
 const dbFile = path.resolve(__dirname, './data/db.json');
 const adapter = new JSONFile(dbFile);
-const dbs = new Low(adapter);
+const dbs = new Low(adapter);  // Low instantiates with the adapter
 
 const PORT = process.env.PORT || 5000;
 const dbPath = process.env.DB_PATH || './database.db';
@@ -53,11 +53,12 @@ app.use((req, res, next) => {
     next();
 });
 
-app.options('*', cors(corsOptions)); 
+app.options('*', cors(corsOptions));
 
+// Initialize LowDB
 const initDbs = async () => {
     await dbs.read();
-    dbs.data = dbs.data || { commandes: [] };
+    dbs.data = dbs.data || { commandes: [] };  // Set default structure if none exists
     await dbs.write();
 };
 
