@@ -1,10 +1,9 @@
 import cors from 'cors';
 import express from 'express';
-import fs from 'fs';
+import fs from 'fs/promises';
 import { JSONFile, Low } from 'lowdb';
 import cron from 'node-cron';
 import path from 'path';
-import { open } from 'sqlite';
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
 
@@ -56,32 +55,27 @@ app.use((req, res, next) => {
 // Initialize LowDB
 const initDbs = async () => {
     await dbs.read();
-    dbs.data = dbs.data || { commandes: [] };  // Set default structure if none exists
+    dbs.data = dbs.data || { commandes: [] };
     await dbs.write();
 };
 
 initDbs().then(() => console.log('Lowdb initialized.'));
 
 // SQLite Database Initialization
-let db;
-const initDb = async () => {
-    db = await open({
-        filename: dbPath,
-        driver: sqlite3.Database
-    });
-
-    await db.exec(`
-        CREATE TABLE IF NOT EXISTS contacts (
+const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+        console.error('Erreur lors de l\'ouverture de la base de données:', err.message);
+    } else {
+        console.log('Connected to SQLite database.');
+        db.run(`CREATE TABLE IF NOT EXISTS contacts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
             email TEXT,
             subject TEXT,
             message TEXT
-        );
-    `);
+        );`);
 
-    await db.exec(`
-        CREATE TABLE IF NOT EXISTS reservations (
+        db.run(`CREATE TABLE IF NOT EXISTS reservations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             firstname TEXT NOT NULL,
             name TEXT,
@@ -89,21 +83,17 @@ const initDb = async () => {
             phone TEXT,
             dateTime TEXT,
             guests INTEGER
-        );
-    `);
-};
-
-initDb().then(() => console.log('SQLite database initialized.'));
+        );`);
+    }
+});
 
 // Routes
 // Menus
+
 app.get('/api/menus', async (req, res) => {
     try {
         const data = await fs.readFile(path.resolve(__dirname, './data/data.json'), 'utf8');
         const menuItems = JSON.parse(data);
-        if (!menuItems || menuItems.length === 0) {
-            return res.status(404).json({ message: 'Menu items not found.' });
-        }
         res.json(menuItems);
     } catch (error) {
         console.error('Error reading menu data:', error.message);
