@@ -15,8 +15,7 @@ const dbPath = process.env.DB_PATH || './database.db';
 
 const allowedOrigins = [
     'https://delta-restaurant-madagascar.vercel.app',
-    'https://delta-restaurant-madagascar.onrender.com',
-    'http://localhost:5173'
+    'https://delta-restaurant-madagascar.onrender.com'
 ];
 
 const corsOptions = {
@@ -136,14 +135,13 @@ app.post('/api/reservations', async (req, res) => {
 
 // Commandes
 app.post('/api/commandes', (req, res) => {
+    console.log('Requête reçue:', req.body);
     const { mealName, softDrink, quantity, tableNumber } = req.body;
-    console.log('Received order:', { mealName, softDrink, quantity, tableNumber });
     const query = `INSERT INTO commandes (mealName, softDrink, quantity, tableNumber) VALUES (?, ?, ?, ?)`;
     db.run(query, [mealName, softDrink, quantity, tableNumber], function (err) {
         if (err) {
             console.error('Erreur lors de l\'ajout de la commande:', err.message);
-            res.status(500).json({ error: 'Failed to save order' });
-            return;
+            return res.status(500).json({ error: 'Erreur lors de la commande' });
         }
         res.json({ order: { mealName, softDrink, quantity, tableNumber } });
     });
