@@ -48,19 +48,6 @@ app.use((req, res, next) => {
 
 app.options('*', cors()); 
 
-// Initialize LowDB
-/**const initLowDB = async () => {
-    const file = path.join(__dirname, './db.json');
-    const adapter = new JSONFile(file);
-    const lowdb = new Low(adapter);
-    await lowdb.read();
-    lowdb.data = lowdb.data || { commandes: [] }; // Initialiser avec une collection vide si le fichier est vide
-    await lowdb.write();
-    return lowdb;
-};
-
-const lowdb = await initLowDB();*/
-
 // SQLite Database Initialization
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
@@ -137,11 +124,46 @@ app.post('/api/reservations', async (req, res) => {
     }
 });
 
+const generateOrderNumber = (orders) => {
+    const lastOrder = orders[orders.length - 1];
+    const lastOrderNumber = lastOrder ? parseInt(lastOrder.orderNumber, 10) : 0;
+    return (lastOrderNumber + 1).toString().padStart(6, '0');
+};
+
+const readOrders = async () => {
+    try {
+        const data = await fs.readFile(path.join(__dirname, './data/commandes.json'), 'utf8');
+        return JSON.parse(data || '[]');
+    } catch (error) {
+        console.error('Erreur lors de la lecture du fichier commande.json:', error.message);
+        return [];
+    }
+};
+
+const writeOrders = async (orders) => {
+    try {
+        await fs.writeFile(path.join(__dirname, './data/commandes.json'), JSON.stringify(orders, null, 2));
+    } catch (error) {
+        console.error('Erreur lors de l\'écriture dans le fichier commande.json:', error.message);
+    }
+};
+
+app.get('/api/generateOrderNumber', async (req, res) => {
+    try {
+        const orders = await readOrders();  
+        const orderNumber = generateOrderNumber(orders);
+        res.status(200).json({ orderNumber });
+    } catch (error) {
+        console.error('Erreur lors de la génération du numéro de commande:', error.message);
+        res.status(500).json({ message: 'Erreur interne du serveur.' });
+    }
+});
+
 // Commandes
 app.post('/api/commandes', async (req, res) => {
-    const { mealName, quantity, tableNumber } = req.body;
+    const { mealName, softDrink, quantity, tableNumber } = req.body;
 
-    if (!mealName || !quantity || !tableNumber) {
+    if (!mealName || !softDrink || !quantity || !tableNumber) {
         return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
     }
 
@@ -168,52 +190,6 @@ app.post('/api/commandes', async (req, res) => {
         return res.status(500).json({ message: 'Erreur interne du serveur.' });
     }
 });
-
-/**app.post('/api/commandes', async (req, res) => {
-    const { mealName, softDrink, quantity, tableNumber } = req.body;
-
-    if (!mealName || !softDrink || !quantity || !tableNumber) {
-        return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
-    }
-
-    try {
-        await lowdb.read(); // Lire les données actuelles
-        const newOrderId = lowdb.data.commandes.length + 1;
-
-        const newOrder = {
-            id: newOrderId,
-            mealName,
-            softDrink,
-            quantity,
-            tableNumber,
-        };
-
-        lowdb.data.commandes.push(newOrder); // Ajouter la nouvelle commande
-        await lowdb.write(); // Sauvegarder dans le fichier JSON
-
-        res.status(200).json({
-            message: 'Commande reçue avec succès!',
-            orderId: newOrderId,
-            order: newOrder,
-        });
-    } catch (error) {
-        console.error('Erreur lors de la commande:', error.message);
-        res.status(500).json({ message: 'Erreur lors de la commande', error: error.message });
-    }
-});
-
-// Réinitialisation quotidienne des commandes
-const resetOrderNumbers = async () => {
-    await initLowDB(); // Réinitialiser la base de données lowdb pour les commandes
-    lowdb.data.commandes = [];
-    await lowdb.write();
-    console.log('Commandes réinitialisées pour la nouvelle journée');
-};
-
-// Planifie la réinitialisation quotidienne à minuit
-cron.schedule('0 0 * * *', () => {
-    resetOrderNumbers();
-});*/
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
