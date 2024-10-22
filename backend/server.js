@@ -1,8 +1,6 @@
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs/promises';
-import { Low } from 'lowdb';
-import { JSONFile } from 'lowdb/node';
 import cron from 'node-cron';
 import path from 'path';
 import sqlite3 from 'sqlite3';
@@ -71,23 +69,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
         );`);
     }
 });
-
-// Initialisation de la base de données lowdb pour les commandes
-const initLowDB = async () => {
-    const file = path.join(__dirname, './data/db.json');
-    const adapter = new JSONFile(file);
-    const lowdb = new Low(adapter);
-    await lowdb.read();
-
-    if (!lowdb.data) {
-        lowdb.data = { commandes: [] };
-    }
-
-    await lowdb.write();
-    return lowdb;
-};
-
-const lowdb = await initLowDB();
 
 // Routes
 // Menus
