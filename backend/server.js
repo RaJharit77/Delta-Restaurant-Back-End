@@ -3,6 +3,7 @@ import express from 'express';
 import fs from 'fs/promises';
 import cron from 'node-cron';
 import path from 'path';
+import { open } from 'sqlite';
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
 
@@ -13,6 +14,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const dbPath = process.env.DB_PATH || './database.db';
 
+// CORS setup
 const allowedOrigins = [
     'https://delta-restaurant-madagascar.vercel.app',
     'https://delta-restaurant-madagascar.onrender.com'
@@ -40,28 +42,26 @@ app.use((req, res, next) => {
     next();
 });
 
-sequelize.sync({ force: false }).then(() => {
-    console.log('Tables synchronized');
-}).catch((error) => console.error('Erreur de synchronisation:', error));
+// SQLite Database Initialization
+let db;
+const initDb = async () => {
+    db = await open({
+        filename: dbPath,
+        driver: sqlite3.Database
+    });
 
-// SQLite database
-const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-        console.error('Erreur lors de l\'ouverture de la base de données:', err.message);
-    } else {
-        console.log('Connected to SQLite database.');
-        db.run(`CREATE TABLE IF NOT EXISTS contacts (
+    await db.exec(`
+        CREATE TABLE IF NOT EXISTS contacts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
             email TEXT,
             subject TEXT,
             message TEXT
-        );`, (err) => {
-            if (err) {
-                console.error('Erreur lors de la création de la table contacts:', err.message);
-            }
-        });
-        db.run(`CREATE TABLE IF NOT EXISTS reservations (
+        );
+    `);
+
+    await db.exec(`
+        CREATE TABLE IF NOT EXISTS reservations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             firstname TEXT NOT NULL,
             name TEXT,
@@ -69,13 +69,21 @@ const db = new sqlite3.Database(dbPath, (err) => {
             phone TEXT,
             dateTime TEXT,
             guests INTEGER
-        );`, (err) => {
-            if (err) {
-                console.error('Erreur lors de la création de la table reservations:', err.message);
-            }
-        });
-    }
-});
+        );
+    `);
+
+    await db.exec(`
+        CREATE TABLE IF NOT EXISTS commandes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mealName TEXT,
+            softDrink TEXT,
+            quantity INTEGER,
+            tableNumber TEXT
+        );
+    `);
+};
+
+initDb().then(() => console.log('SQLite database initialized.'));
 
 // Routes
 // Menus
@@ -127,28 +135,28 @@ app.post('/api/reservations', async (req, res) => {
 });
 
 // Commandes
-app.post('/api/commandes', (req, res) => {
-    console.log('Requête reçue:', req.body);
+app.post('/api/commandes', async (req, res) => {
     const { mealName, softDrink, quantity, tableNumber } = req.body;
-    const query = `INSERT INTO commandes (mealName, softDrink, quantity, tableNumber) VALUES (?, ?, ?, ?)`;
-    db.run(query, [mealName, softDrink, quantity, tableNumber], function (err) {
-        if (err) {
-            console.error('Erreur lors de l\'ajout de la commande:', err.message);
-            return res.status(500).json({ error: 'Erreur lors de la commande' });
-        }
+    try {
+        const result = await db.run(
+            `INSERT INTO commandes (mealName, softDrink, quantity, tableNumber) VALUES (?, ?, ?, ?)`,
+            [mealName, softDrink, quantity, tableNumber]
+        );
         res.json({ order: { mealName, softDrink, quantity, tableNumber } });
-    });
+    } catch (error) {
+        console.error('Erreur lors de l\'ajout de la commande:', error.message);
+        res.status(500).json({ error: 'Erreur lors de la commande' });
+    }
 });
 
 // Réinitialisation quotidienne des commandes
 const resetOrderNumbers = async () => {
-    db.run('DELETE FROM commandes', (err) => {
-        if (err) {
-            console.error('Erreur lors de la réinitialisation des commandes:', err.message);
-        } else {
-            console.log('Commandes réinitialisées pour la nouvelle journée');
-        }
-    });
+    try {
+        await db.run('DELETE FROM commandes');
+        console.log('Commandes réinitialisées pour la nouvelle journée');
+    } catch (error) {
+        console.error('Erreur lors de la réinitialisation des commandes:', error.message);
+    }
 };
 
 // Planifie la réinitialisation quotidienne à minuit
