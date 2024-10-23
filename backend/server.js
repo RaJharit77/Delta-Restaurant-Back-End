@@ -3,7 +3,6 @@ import express from 'express';
 import fs from 'fs/promises';
 import cron from 'node-cron';
 import path from 'path';
-import { DataTypes, Sequelize } from 'sequelize';
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
 
@@ -31,7 +30,6 @@ const corsOptions = {
         }
     },
     origin: '*',
-    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'UPDATE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
@@ -84,46 +82,21 @@ const db = new sqlite3.Database(dbPath, (err) => {
     }
 });
 
-// Initialize Sequelize
-const sequelize = new Sequelize({
-    dialect: 'sqlite',
-    storage: orderDbPath,
-});
-
-// Define Commandes model
-const Commande = sequelize.define('Commande', {
-    mealName: {
-        type: DataTypes.STRING,
-        allowNull: false,
-    },
-    softDrink: {
-        type: DataTypes.STRING,
-        allowNull: false,
-    },
-    quantity: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-    },
-    tableNumber: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-    },
-    orderNumber: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        unique: true,
-    },
-    date: {
-        type: DataTypes.DATE,
-        allowNull: false,
-    },
-}, {
-    tableName: 'commandes',
-});
-
-// Sync the database
-sequelize.sync().then(() => {
-    console.log('La table Commandes a été créée.');
+const orderDb = new sqlite3.Database(orderDbPath, (err) => {
+    if (err) {
+        console.error('Erreur lors de l\'ouverture de la base de données des commandes:', err.message);
+    } else {
+        console.log('Connected to SQLite orders database.');
+        orderDb.run(`CREATE TABLE IF NOT EXISTS commandes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mealName TEXT NOT NULL,
+            softDrink TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            tableNumber INTEGER NOT NULL,
+            orderNumber TEXT NOT NULL UNIQUE,
+            date TEXT NOT NULL
+        );`);
+    }
 });
 
 // Routes
@@ -146,75 +119,96 @@ app.get('/api/menus', async (req, res) => {
 });
 
 // Contacts
-app.post('/api/contacts', async (req, res) => {
+app.post('/api/contacts', (req, res) => {
     const { name, email, subject, message } = req.body;
     if (!name || !email || !message) {
         return res.status(400).json({ message: 'Tous les champs sont requis.' });
     }
-    try {
-        const result = await db.run(
-            'INSERT INTO contacts (name, email, subject, message) VALUES (?, ?, ?, ?)',
-            [name, email, subject, message]
-        );
-        res.status(200).json({ message: 'Message envoyé avec succès.', contactId: result.lastID });
-    } catch (error) {
-        console.error('Erreur lors de l\'envoi du message:', error);
-        res.status(500).json({ message: 'Erreur lors de l\'envoi du message.' });
-    }
+
+    db.run(
+        'INSERT INTO contacts (name, email, subject, message) VALUES (?, ?, ?, ?)',
+        [name, email, subject, message],
+        function (err) {
+            if (err) {
+                console.error('Erreur lors de l\'envoi du message:', err.message);
+                return res.status(500).json({ message: 'Erreur lors de l\'envoi du message.' });
+            }
+            res.status(200).json({ message: 'Message envoyé avec succès.', contactId: this.lastID });
+        }
+    );
 });
 
 // Réservations
-app.post('/api/reservations', async (req, res) => {
+app.post('/api/reservations', (req, res) => {
     const { firstname, name, email, phone, dateTime, guests } = req.body;
     if (!firstname || !dateTime || !guests) {
         return res.status(400).json({ message: 'Tous les champs sont requis.' });
     }
-    try {
-        const result = await db.run(
-            'INSERT INTO reservations (firstname, name, email, phone, dateTime, guests) VALUES (?, ?, ?, ?, ?, ?)',
-            [firstname, name, email, phone, dateTime, guests]
-        );
-        res.status(200).json({ message: 'Réservation effectuée avec succès.', reservationId: result.lastID });
-    } catch (error) {
-        console.error('Erreur lors de la réservation:', error);
-        res.status(500).json({ message: 'Erreur lors de la réservation.' });
-    }
+
+    db.run(
+        'INSERT INTO reservations (firstname, name, email, phone, dateTime, guests) VALUES (?, ?, ?, ?, ?, ?)',
+        [firstname, name, email, phone, dateTime, guests],
+        function (err) {
+            if (err) {
+                console.error('Erreur lors de la réservation:', err.message);
+                return res.status(500).json({ message: 'Erreur lors de la réservation.' });
+            }
+            res.status(200).json({ message: 'Réservation effectuée avec succès.', reservationId: this.lastID });
+        }
+    );
 });
 
 // Function to generate a new order number
-const generateOrderNumber = async () => {
-    const lastOrder = await Commande.findOne({ order: [['id', 'DESC']] });
-    const newOrderNumber = lastOrder ? (parseInt(lastOrder.orderNumber) + 1).toString().padStart(6, '0') : '000001';
-    return newOrderNumber;
+const generateOrderNumber = (callback) => {
+    orderDb.get('SELECT orderNumber FROM commandes ORDER BY id DESC LIMIT 1', (err, row) => {
+        if (err) {
+            console.error('Erreur lors de la génération du numéro de commande:', err.message);
+            callback(null);
+        } else {
+            const lastOrderNumber = row ? parseInt(row.orderNumber) : 0;
+            const newOrderNumber = (lastOrderNumber + 1).toString().padStart(6, '0');
+            callback(newOrderNumber);
+        }
+    });
 };
 
 // Example for creating a new order
-app.post('/api/commandes', async (req, res) => {
+app.post('/api/commandes', (req, res) => {
     const { mealName, softDrink, quantity, tableNumber } = req.body;
-    const date = new Date();
+    const date = new Date().toISOString();
 
     if (!mealName || !softDrink || !quantity || !tableNumber) {
         return res.status(400).json({ message: 'Tous les champs sont requis.' });
     }
 
-    try {
-        const orderNumber = await generateOrderNumber();
-        const newOrder = await Commande.create({ mealName, softDrink, quantity, tableNumber, orderNumber, date });
-        res.status(201).json({ message: 'Commande créée avec succès.', orderNumber: newOrder.orderNumber });
-    } catch (error) {
-        console.error('Erreur lors de la création de la commande:', error);
-        res.status(500).json({ message: 'Erreur lors de la création de la commande.' });
-    }
+    generateOrderNumber((orderNumber) => {
+        if (!orderNumber) {
+            return res.status(500).json({ message: 'Erreur lors de la génération du numéro de commande.' });
+        }
+
+        orderDb.run(
+            'INSERT INTO commandes (mealName, softDrink, quantity, tableNumber, orderNumber, date) VALUES (?, ?, ?, ?, ?, ?)',
+            [mealName, softDrink, quantity, tableNumber, orderNumber, date],
+            function (err) {
+                if (err) {
+                    console.error('Erreur lors de la création de la commande:', err.message);
+                    return res.status(500).json({ message: 'Erreur lors de la création de la commande.' });
+                }
+                res.status(201).json({ message: 'Commande créée avec succès.', orderNumber });
+            }
+        );
+    });
 });
 
 // Réinitialiser les commandes
-const resetOrders = async () => {
-    try {
-        await Commande.destroy({ where: {} }); // Supprime toutes les commandes
-        console.log('Commandes réinitialisées avec succès.');
-    } catch (error) {
-        console.error('Erreur lors de la réinitialisation des commandes:', error.message);
-    }
+const resetOrders = () => {
+    orderDb.run('DELETE FROM commandes', (err) => {
+        if (err) {
+            console.error('Erreur lors de la réinitialisation des commandes:', err.message);
+        } else {
+            console.log('Commandes réinitialisées avec succès.');
+        }
+    });
 };
 
 // Planifier la réinitialisation quotidienne à minuit
