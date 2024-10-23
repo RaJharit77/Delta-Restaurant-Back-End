@@ -91,7 +91,7 @@ const dbs = new sqlite3.Database('./commandes.db', (err) => {
 });
 
 // Création de la table commandes si elle n'existe pas déjà
-dbs.run(`
+db.run(`
     CREATE TABLE IF NOT EXISTS commandes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         mealName TEXT NOT NULL,
@@ -102,25 +102,6 @@ dbs.run(`
         date TEXT NOT NULL
     )
 `);
-
-const runQuery = (db, query, params = []) => {
-    return new Promise((resolve, reject) => {
-        db.run(query, params, function (err) {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(this.lastID);
-            }
-        });
-        dbs.run(query, params, function (err) {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(this.lastID);
-            }
-        });
-    });
-};
 
 // Routes
 // Menus
@@ -180,7 +161,7 @@ const generateOrderNumber = async () => {
 
 const writeOrder = (order) => {
     return new Promise((resolve, reject) => {
-        dbs.run(
+        db.run(
             'INSERT INTO commandes (mealName, softDrink, quantity, tableNumber, orderNumber, date) VALUES (?, ?, ?, ?, ?, ?)', 
             [order.mealName, order.softDrink, order.quantity, order.tableNumber, order.orderNumber, order.date], 
             (err) => {
@@ -196,7 +177,7 @@ const writeOrder = (order) => {
 
 const getLastOrderNumber = () => {
     return new Promise((resolve, reject) => {
-        dbs.get('SELECT orderNumber FROM commandes ORDER BY id DESC LIMIT 1', (err, row) => {
+        db.get('SELECT orderNumber FROM commandes ORDER BY id DESC LIMIT 1', (err, row) => {
             if (err) {
                 reject(err);
             } else {
@@ -226,7 +207,7 @@ app.post('/api/commandes', async (req, res) => {
     }
 
     try {
-        const result = await dbs.run(
+        const result = await db.run(
             'INSERT INTO commandes (mealName, softDrink, quantity, tableNumber, orderNumber, date) VALUES (?, ?, ?, ?, ?, ?)',
             [mealName, softDrink, quantity, tableNumber, orderNumber, date]
         );
@@ -239,7 +220,7 @@ app.post('/api/commandes', async (req, res) => {
 
 // Fonction pour réinitialiser les commandes chaque jour à minuit
 const resetOrders = () => {
-    dbs.run('DELETE FROM commandes', (err) => {
+    db.run('DELETE FROM commandes', (err) => {
         if (err) {
             console.error('Erreur lors de la réinitialisation des commandes:', err.message);
         } else {
