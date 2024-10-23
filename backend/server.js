@@ -3,6 +3,7 @@ import express from 'express';
 import fs from 'fs/promises';
 import cron from 'node-cron';
 import path from 'path';
+import { DataTypes, Sequelize } from 'sequelize';
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
 
@@ -83,23 +84,47 @@ const db = new sqlite3.Database(dbPath, (err) => {
     }
 });
 
-// Initialisation de la base de données SQLite
-const dbs = new sqlite3.Database(orderDbPath, (err) => {
-    if (err) {
-        console.error('Erreur lors de la connexion à SQLite:', err.message);
-    } else {
-        console.log('Connecté à la base de données SQLite des commandes.');
-        dbs.run(`CREATE TABLE IF NOT EXISTS commandes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            mealName TEXT NOT NULL,
-            softDrink TEXT NOT NULL,
-            quantity INTEGER NOT NULL,
-            tableNumber INTEGER NOT NULL,
-            orderNumber TEXT NOT NULL,
-            date TEXT NOT NULL
-        );`);
-    }
+// Initialize Sequelize
+const sequelize = new Sequelize({
+    dialect: 'sqlite',
+    storage: orderDbPath,
 });
+
+// Define Commandes model
+const Commande = sequelize.define('Commande', {
+    mealName: {
+        type: DataTypes.STRING,
+        allowNull: false,
+    },
+    softDrink: {
+        type: DataTypes.STRING,
+        allowNull: false,
+    },
+    quantity: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+    },
+    tableNumber: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+    },
+    orderNumber: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true,
+    },
+    date: {
+        type: DataTypes.DATE,
+        allowNull: false,
+    },
+}, {
+    tableName: 'commandes',
+});
+
+// Sync the database
+sequelize.sync().then(() => {
+    console.log('La table Commandes a été créée.');
+});;
 
 // Routes
 // Menus
@@ -151,89 +176,44 @@ app.post('/api/reservations', async (req, res) => {
     }
 });
 
-// Générer un numéro de commande
+// Function to generate a new order number
 const generateOrderNumber = async () => {
-    try {
-        const lastOrderNumber = await getLastOrderNumber();
-        return (lastOrderNumber + 1).toString().padStart(6, '0');
-    } catch (error) {
-        console.error('Erreur dans generateOrderNumber:', error);
-        throw error;
-    }
+    const lastOrder = await Commande.findOne({ order: [['id', 'DESC']] });
+    const newOrderNumber = lastOrder ? (parseInt(lastOrder.orderNumber) + 1).toString().padStart(6, '0') : '000001';
+    return newOrderNumber;
 };
 
-// Écrire une commande dans la base de données
-const writeOrder = (order) => {
-    return new Promise((resolve, reject) => {
-        dbs.run(
-            'INSERT INTO commandes (mealName, softDrink, quantity, tableNumber, orderNumber, date) VALUES (?, ?, ?, ?, ?, ?)', 
-            [order.mealName, order.softDrink, order.quantity, order.tableNumber, order.orderNumber, order.date], 
-            (err) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            }
-        );
-    });
-};
-
-// Obtenir le dernier numéro de commande
-const getLastOrderNumber = () => {
-    return new Promise((resolve, reject) => {
-        dbs.get('SELECT orderNumber FROM commandes ORDER BY id DESC LIMIT 1', (err, row) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(row ? parseInt(row.orderNumber, 10) : 0);
-            }
-        });
-    });
-};
-
-// Endpoint pour générer un numéro de commande
-app.get('/api/generateOrderNumber', async (req, res) => {
-    try {
-        const orderNumber = await generateOrderNumber();  
-        res.status(200).json({ orderNumber });
-    } catch (error) {
-        console.error('Erreur lors de la génération du numéro de commande:', error.message);
-        res.status(500).json({ message: 'Erreur interne du serveur.' });
-    }
-});
-
-// Endpoint pour créer une commande
+// Example for creating a new order
 app.post('/api/commandes', async (req, res) => {
-    const { mealName, softDrink, quantity, tableNumber, orderNumber } = req.body;
-    const date = new Date().toISOString();
+    const { mealName, softDrink, quantity, tableNumber } = req.body;
+    const date = new Date();
 
-    if (!mealName || !softDrink || !quantity || !tableNumber || !orderNumber) {
+    if (!mealName || !softDrink || !quantity || !tableNumber) {
         return res.status(400).json({ message: 'Tous les champs sont requis.' });
     }
 
     try {
-        await writeOrder({ mealName, softDrink, quantity, tableNumber, orderNumber, date });
-        res.status(201).json({ message: 'Commande créée avec succès.', orderNumber }); 
+        const orderNumber = await generateOrderNumber();
+        const newOrder = await Commande.create({ mealName, softDrink, quantity, tableNumber, orderNumber, date });
+        res.status(201).json({ message: 'Commande créée avec succès.', orderNumber: newOrder.orderNumber });
     } catch (error) {
         console.error('Erreur lors de la création de la commande:', error);
         res.status(500).json({ message: 'Erreur lors de la création de la commande.' });
     }
 });
 
-// Fonction pour réinitialiser les commandes chaque jour à minuit
-const resetOrders = () => {
-    dbs.run('DELETE FROM commandes', (err) => {
-        if (err) {
-            console.error('Erreur lors de la réinitialisation des commandes:', err.message);
-        } else {
-            console.log('Commandes réinitialisées.');
-        }
-    });
+// Réinitialiser les commandes
+const resetOrders = async () => {
+    try {
+        await Commande.destroy({ where: {} }); // Supprime toutes les commandes
+        console.log('Commandes réinitialisées avec succès.');
+    } catch (error) {
+        console.error('Erreur lors de la réinitialisation des commandes:', error.message);
+    }
 };
 
-// Planification de la réinitialisation quotidienne à 23h59
-cron.schedule('59 23 * * *', resetOrders);
+// Planifier la réinitialisation quotidienne à minuit
+cron.schedule('0 0 * * *', resetOrders);
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
