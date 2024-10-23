@@ -203,6 +203,16 @@ const generateOrderNumber = (callback) => {
     });
 };
 
+// Route pour générer un numéro de commande
+app.get('/api/generateOrderNumber', (req, res) => {
+    generateOrderNumber((orderNumber) => {
+        if (!orderNumber) {
+            return res.status(500).json({ message: 'Erreur lors de la génération du numéro de commande.' });
+        }
+        res.status(200).json({ orderNumber });
+    });
+});
+
 // Example for creating a new order
 app.post('/api/commandes', (req, res) => {
     const { mealName, softDrink, quantity, tableNumber } = req.body;
