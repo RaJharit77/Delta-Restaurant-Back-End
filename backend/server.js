@@ -104,43 +104,39 @@ app.get('/api/menus', async (req, res) => {
 });
 
 // Contacts
-app.post('/api/contacts', (req, res) => {
+app.post('/api/contacts', async (req, res) => {
     const { name, email, subject, message } = req.body;
     if (!name || !email || !message) {
         return res.status(400).json({ message: 'Tous les champs sont requis.' });
     }
-
-    db.run(
-        'INSERT INTO contacts (name, email, subject, message) VALUES (?, ?, ?, ?)',
-        [name, email, subject, message],
-        function (err) {
-            if (err) {
-                console.error('Erreur lors de l\'envoi du message:', err.message);
-                return res.status(500).json({ message: 'Erreur lors de l\'envoi du message.' });
-            }
-            res.status(200).json({ message: 'Message envoyé avec succès.', contactId: this.lastID });
-        }
-    );
+    try {
+        const result = await db.run(
+            'INSERT INTO contacts (name, email, subject, message) VALUES (?, ?, ?, ?)',
+            [name, email, subject, message]
+        );
+        res.status(200).json({ message: 'Message envoyé avec succès.', contactId: result.lastID });
+    } catch (error) {
+        console.error('Erreur lors de l\'envoi du message:', error);
+        res.status(500).json({ message: 'Erreur lors de l\'envoi du message.' });
+    }
 });
 
 // Réservations
-app.post('/api/reservations', (req, res) => {
+app.post('/api/reservations', async (req, res) => {
     const { firstname, name, email, phone, dateTime, guests } = req.body;
     if (!firstname || !dateTime || !guests) {
         return res.status(400).json({ message: 'Tous les champs sont requis.' });
     }
-
-    db.run(
-        'INSERT INTO reservations (firstname, name, email, phone, dateTime, guests) VALUES (?, ?, ?, ?, ?, ?)',
-        [firstname, name, email, phone, dateTime, guests],
-        function (err) {
-            if (err) {
-                console.error('Erreur lors de la réservation:', err.message);
-                return res.status(500).json({ message: 'Erreur lors de la réservation.' });
-            }
-            res.status(200).json({ message: 'Réservation effectuée avec succès.', reservationId: this.lastID });
-        }
-    );
+    try {
+        const result = await db.run(
+            'INSERT INTO reservations (firstname, name, email, phone, dateTime, guests) VALUES (?, ?, ?, ?, ?, ?)',
+            [firstname, name, email, phone, dateTime, guests]
+        );
+        res.status(200).json({ message: 'Réservation effectuée avec succès.', reservationId: result.lastID });
+    } catch (error) {
+        console.error('Erreur lors de la réservation:', error);
+        res.status(500).json({ message: 'Erreur lors de la réservation.' });
+    }
 });
 
 // Fonction pour générer un numéro de commande unique
