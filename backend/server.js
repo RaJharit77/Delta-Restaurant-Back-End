@@ -191,6 +191,7 @@ app.post('/api/reservations', (req, res) => {
 
 // Function to generate a new order number
 const generateOrderNumber = (callback) => {
+    console.log('Tentative de génération d\'un nouveau numéro de commande...');
     orderDb.get('SELECT orderNumber FROM commandes ORDER BY id DESC LIMIT 1', (err, row) => {
         if (err) {
             console.error('Erreur lors de la génération du numéro de commande:', err.message);
@@ -209,6 +210,10 @@ app.get('/api/generateOrderNumber', (req, res) => {
     generateOrderNumber((orderNumber) => {
         if (!orderNumber) {
             return res.status(500).json({ message: 'Erreur lors de la génération du numéro de commande.' });
+        }
+        // Vérifiez que le numéro de commande est une chaîne
+        if (typeof orderNumber !== 'string') {
+            return res.status(500).json({ message: 'Numéro de commande non valide.' });
         }
         res.status(200).json({ orderNumber });
     });
