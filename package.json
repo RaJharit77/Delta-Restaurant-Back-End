@@ -12,6 +12,7 @@
   "description": "",
   "dependencies": {
     "@seald-io/nedb": "^4.0.4",
+    "alasql": "^4.5.2",
     "axios": "^1.7.7",
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",
@@ -23,7 +24,6 @@
     "mongodb": "^6.9.0",
     "mongoose": "^8.7.0",
     "morgan": "^1.10.0",
-    "nedb": "^1.8.0",
     "nedb-promises": "^6.2.3",
     "node-cron": "^3.0.3",
     "pg": "^8.13.0",

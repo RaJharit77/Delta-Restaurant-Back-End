@@ -1,7 +1,7 @@
+import alasql from 'alasql';
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs/promises';
-import Datastore from 'nedb';
 import cron from 'node-cron';
 import path from 'path';
 import sqlite3 from 'sqlite3';
@@ -13,7 +13,6 @@ const app = express();
 
 const PORT = process.env.PORT || 5000;
 const dbPath = process.env.DB_PATH || './database.db';
-const orderDb = new Datastore({ filename: './orders.db', autoload: true });
 
 const allowedOrigins = [
     'https://delta-restaurant-madagascar.vercel.app',
@@ -81,6 +80,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
         );`);
     }
 });
+
+// Initialiser la base de données en mémoire
+alasql('CREATE TABLE commandes (orderNumber STRING, mealName STRING, softDrink STRING, quantity INT, tableNumber INT, date STRING)');
 
 // Routes
 // Menus
@@ -155,15 +157,16 @@ const generateOrderNumber = async () => {
 };
 
 //generate order number
-app.get('/api/generateOrderNumber', async (req, res) => {
-    const orderNumber = await generateOrderNumber();
-    if (!orderNumber) {
-        return res.status(500).json({ message: 'Erreur lors de la génération du numéro de commande.' });
-    }
-    res.status(200).json({ orderNumber });
+app.get('/api/generateOrderNumber', (req, res) => {
+    const lastOrder = alasql('SELECT * FROM commandes ORDER BY orderNumber DESC LIMIT 1')[0];
+    const lastOrderNumber = lastOrder ? parseInt(lastOrder.orderNumber) : 0;
+    const newOrderNumber = (lastOrderNumber + 1).toString().padStart(6, '0');
+    
+    res.status(200).json({ orderNumber: newOrderNumber });
 });
 
-app.post('/api/commandes', async (req, res) => {
+//Commandes
+app.post('/api/commandes', (req, res) => {
     const { mealName, softDrink, quantity, tableNumber } = req.body;
     const date = new Date().toISOString();
 
@@ -171,36 +174,18 @@ app.post('/api/commandes', async (req, res) => {
         return res.status(400).json({ message: 'Tous les champs sont requis.' });
     }
 
-    const orderNumber = await generateOrderNumber();
-    if (!orderNumber) {
-        return res.status(500).json({ message: 'Erreur lors de la génération du numéro de commande.' });
-    }
+    const orderNumber = alasql('SELECT * FROM commandes ORDER BY orderNumber DESC LIMIT 1')[0] ? (parseInt(alasql('SELECT * FROM commandes ORDER BY orderNumber DESC LIMIT 1')[0].orderNumber) + 1).toString().padStart(6, '0') : '000001';
 
     const newOrder = { mealName, softDrink, quantity, tableNumber, orderNumber, date };
+    alasql('INSERT INTO commandes VALUES (?, ?, ?, ?, ?, ?)', [orderNumber, mealName, softDrink, quantity, tableNumber, date]);
 
-    try {
-        const data = await fs.readFile(ordersFilePath, 'utf8');
-        const orders = JSON.parse(data);
-        orders.push(newOrder);
-        await fs.writeFile(ordersFilePath, JSON.stringify(orders, null, 2));
-        res.status(201).json({ message: 'Commande créée avec succès.', orderNumber });
-    } catch (error) {
-        console.error('Erreur lors de la création de la commande:', error.message);
-        res.status(500).json({ message: 'Erreur lors de la création de la commande.' });
-    }
+    res.status(201).json({ message: 'Commande créée avec succès.', orderNumber });
 });
 
 // Réinitialiser les commandes
 const resetOrders = () => {
-    orderDb.remove({}, { multi: true }, (err, numRemoved) => {
-        if (err) {
-            console.error('Erreur lors de la réinitialisation des commandes:', err.message);
-        } else {
-            console.log(`Toutes les commandes (${numRemoved}) ont été réinitialisées.`);
-            initializeInitialOrderNumber();
-            console.log('Le numéro de commande initial a été réinitialisé.');
-        }
-    });
+    alasql('DELETE FROM commandes');
+    console.log('Toutes les commandes ont été réinitialisées.');
 };
 
 // Tâche cron pour réinitialiser les commandes tous les jours à minuit
