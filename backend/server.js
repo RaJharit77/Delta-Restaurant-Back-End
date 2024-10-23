@@ -29,7 +29,6 @@ const corsOptions = {
             callback(new Error('Not allowed by CORS'));
         }
     },
-    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'UPDATE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
@@ -95,9 +94,41 @@ const orderDb = new sqlite3.Database(orderDbPath, (err) => {
             tableNumber INTEGER NOT NULL,
             orderNumber TEXT NOT NULL UNIQUE,
             date TEXT NOT NULL
-        );`);
+        );`, (err) => {
+            if (err) {
+                console.error('Erreur lors de la création de la table des commandes:', err.message);
+            } else {
+                initializeInitialOrderNumber();
+            }
+        });
     }
 });
+
+// Function to initialize the first order number
+const initializeInitialOrderNumber = () => {
+    orderDb.get('SELECT COUNT(*) as count FROM commandes', (err, row) => {
+        if (err) {
+            console.error('Erreur lors de la vérification des commandes:', err.message);
+            return;
+        }
+        if (row.count === 0) {
+            // Insert the initial order with number "000001"
+            const initialOrderNumber = "000001";
+            const initialDate = new Date().toISOString();
+            orderDb.run(
+                'INSERT INTO commandes (mealName, softDrink, quantity, tableNumber, orderNumber, date) VALUES (?, ?, ?, ?, ?, ?)',
+                ['Initial Meal', 'Initial Drink', 1, 1, initialOrderNumber, initialDate],
+                (err) => {
+                    if (err) {
+                        console.error('Erreur lors de l\'insertion de la commande initiale:', err.message);
+                    } else {
+                        console.log('Commande initiale insérée avec succès avec le numéro:', initialOrderNumber);
+                    }
+                }
+            );
+        }
+    });
+};
 
 // Routes
 // Menus
@@ -206,14 +237,15 @@ const resetOrders = () => {
         if (err) {
             console.error('Erreur lors de la réinitialisation des commandes:', err.message);
         } else {
-            console.log('Commandes réinitialisées avec succès.');
+            console.log('Toutes les commandes ont été réinitialisées.');
+            initializeInitialOrderNumber();
         }
     });
 };
 
-// Planifier la réinitialisation quotidienne à minuit
+// Cron job for resetting orders every day at midnight
 cron.schedule('0 0 * * *', resetOrders);
 
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
