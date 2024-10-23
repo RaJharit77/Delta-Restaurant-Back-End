@@ -4,6 +4,6 @@ node_modules
 
 # Ignorer la base de données SQLite
 database.db
-commandes.db
+orders.db
 
 save.js
