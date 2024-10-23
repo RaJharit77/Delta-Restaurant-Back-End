@@ -218,34 +218,22 @@ app.get('/api/generateOrderNumber', async (req, res) => {
 
 // Endpoint pour créer une commande
 app.post('/api/commandes', async (req, res) => {
-    const { mealName, softDrink, quantity, tableNumber } = req.body;
+    const { mealName, softDrink, quantity, tableNumber, orderNumber } = req.body;
+    const date = new Date().toISOString();
 
-    if (!mealName || !softDrink || !quantity || !tableNumber) {
-        return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
+    if (!mealName || !softDrink || !quantity || !tableNumber || !orderNumber) {
+        return res.status(400).json({ message: 'Tous les champs sont requis.' });
     }
 
     try {
-        const orderNumber = await generateOrderNumber();
-
-        const newOrder = {
-            mealName,
-            softDrink,
-            quantity,
-            tableNumber,
-            orderNumber,
-            date: new Date().toISOString(),
-        };
-
-        // Insérer la commande dans SQLite
-        await writeOrder(newOrder);
-
-        return res.status(200).json({
-            message: 'Commande reçue avec succès!',
-            order: newOrder,
-        });
+        const result = await dbs.run(
+            'INSERT INTO commandes (mealName, softDrink, quantity, tableNumber, orderNumber, date) VALUES (?, ?, ?, ?, ?, ?)',
+            [mealName, softDrink, quantity, tableNumber, orderNumber, date]
+        );
+        res.status(201).json({ message: 'Commande créée avec succès.', nextOrderNumber: orderNumber + 1 }); // Logique pour le numéro de commande
     } catch (error) {
-        console.error('Erreur lors du traitement de la commande:', error.message);
-        return res.status(500).json({ message: 'Erreur interne du serveur.' });
+        console.error('Erreur lors de la création de la commande:', error);
+        res.status(500).json({ message: 'Erreur lors de la création de la commande.' });
     }
 });
 
