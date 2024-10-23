@@ -215,6 +215,7 @@ app.get('/api/generateOrderNumber', (req, res) => {
         if (typeof orderNumber !== 'string') {
             return res.status(500).json({ message: 'Numéro de commande non valide.' });
         }
+        console.log('Numéro de commande renvoyé:', orderNumber);
         res.status(200).json({ orderNumber });
     });
 });
