@@ -154,19 +154,13 @@ const generateOrderNumber = async () => {
     }
 };
 
-// Route pour générer un numéro de commande
-app.get('/api/generateOrderNumber', (req, res) => {
-    generateOrderNumber((orderNumber) => {
-        if (!orderNumber) {
-            return res.status(500).json({ message: 'Erreur lors de la génération du numéro de commande.' });
-        }
-        // Vérifiez que le numéro de commande est une chaîne
-        if (typeof orderNumber !== 'string') {
-            return res.status(500).json({ message: 'Numéro de commande non valide.' });
-        }
-        console.log('Numéro de commande renvoyé:', orderNumber);
-        res.status(200).json({ orderNumber });
-    });
+//generate order number
+app.get('/api/generateOrderNumber', async (req, res) => {
+    const orderNumber = await generateOrderNumber();
+    if (!orderNumber) {
+        return res.status(500).json({ message: 'Erreur lors de la génération du numéro de commande.' });
+    }
+    res.status(200).json({ orderNumber });
 });
 
 app.post('/api/commandes', async (req, res) => {
