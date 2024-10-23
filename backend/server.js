@@ -82,7 +82,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 });
 
 // Initialiser la base de données en mémoire
-alasql('CREATE TABLE commandes (orderNumber STRING, mealName STRING, softDrink STRING, quantity INT, tableNumber INT, date STRING)');
+alasql('CREATE TABLE commandes (orderNumber STRING, mealName STRING, softDrink STRING, quantity INT, tableNumber STRING, date STRING)');
 
 // Routes
 // Menus
