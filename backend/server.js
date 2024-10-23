@@ -81,7 +81,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 });
 
 // Initialisation de la base de données SQLite
-const dbs = new sqlite3.Database('./data/commandes.db', (err) => {
+const dbs = new sqlite3.Database('./commandes.db', (err) => {
     if (err) {
         console.error('Erreur lors de la connexion à SQLite:', err.message);
     } else {
