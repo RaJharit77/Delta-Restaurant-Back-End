@@ -1,5 +1,5 @@
 # Delta-restaurant-Back-End
-Ce projet est à propos de la restaurant nommé <mark>Delta Restaurant®</mark> en utilisant le framework <mark>Express JS</mark> et le framework <mark>SQLite</mark> comme outils pour le back-end de ce site.
+Ce projet est à propos de la restaurant nommé <mark>Delta Restaurant®</mark> en utilisant le framework <mark>Express JS</mark> et le framework <mark>SQLite</mark> ainsi que l'utilisation de <mark>AlaSQL</mark>  comme outils pour le back-end de ce site.
 
 ### Description du projet
 Ceci est une repository pour le backend avec l'API Rest de mon projet personnel pendant une année de passage (L1) chez HEI(Haute École d'informatique) nommé Delta Restaurant.
