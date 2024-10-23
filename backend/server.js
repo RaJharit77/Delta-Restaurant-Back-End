@@ -153,46 +153,34 @@ app.post('/api/reservations', async (req, res) => {
 });
 
 //generate number
-const generateOrderNumber = (lastOrderNumber) => {
-    const lastNumber = lastOrderNumber ? parseInt(lastOrderNumber, 10) : 0;
-    return (lastNumber + 1).toString().padStart(6, '0');
+const generateOrderNumber = (orders) => {
+    const lastOrder = orders[orders.length - 1];
+    const lastOrderNumber = lastOrder ? parseInt(lastOrder.orderNumber, 10) : 0;
+    return (lastOrderNumber + 1).toString().padStart(6, '0');
 };
 
-// Lire le dernier numéro de commande dans la base de données
-const getLastOrderNumber = async () => {
-    return new Promise((resolve, reject) => {
-        dbs.get("SELECT orderNumber FROM commandes ORDER BY id DESC LIMIT 1", (err, row) => {
-            if (err) {
-                return reject(err);
-            }
-            resolve(row ? row.orderNumber : null);
-        });
-    });
+const readOrders = async () => {
+    try {
+        const data = await fs.readFile(path.join(__dirname, './data/commandes.json'), 'utf8');
+        return JSON.parse(data || '[]');
+    } catch (error) {
+        console.error('Erreur lors de la lecture du fichier commande.json:', error.message);
+        return [];
+    }
 };
 
-// Enregistrer une commande dans la base de données
-const writeOrder = async (order) => {
-    return new Promise((resolve, reject) => {
-        const { mealName, softDrink, quantity, tableNumber, orderNumber, date } = order;
-        dbs.run(
-            `INSERT INTO commandes (mealName, softDrink, quantity, tableNumber, orderNumber, date) 
-            VALUES (?, ?, ?, ?, ?, ?)`,
-            [mealName, softDrink, quantity, tableNumber, orderNumber, date],
-            function (err) {
-                if (err) {
-                    return reject(err);
-                }
-                resolve(this.lastID);
-            }
-        );
-    });
+const writeOrders = async (orders) => {
+    try {
+        await fs.writeFile(path.join(__dirname, './data/commandes.json'), JSON.stringify(orders, null, 2));
+    } catch (error) {
+        console.error('Erreur lors de l\'écriture dans le fichier commande.json:', error.message);
+    }
 };
 
-// Endpoint pour générer un nouveau numéro de commande
 app.get('/api/generateOrderNumber', async (req, res) => {
     try {
-        const lastOrderNumber = await getLastOrderNumber();
-        const orderNumber = generateOrderNumber(lastOrderNumber);
+        const orders = await readOrders();  
+        const orderNumber = generateOrderNumber(orders);
         res.status(200).json({ orderNumber });
     } catch (error) {
         console.error('Erreur lors de la génération du numéro de commande:', error.message);
