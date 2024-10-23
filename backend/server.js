@@ -132,8 +132,13 @@ app.get('/api/menus', async (req, res) => {
     try {
         const data = await fs.readFile(path.resolve(__dirname, './data/data.json'), 'utf8');
         console.log('File read successfully:', data);
-        const menuItems = JSON.parse(data);
-        res.json(menuItems);
+        try {
+            const menuItems = JSON.parse(data);
+            res.json(menuItems);
+        } catch (parseError) {
+            console.error('Erreur lors de l\'analyse JSON :', parseError.message);
+            res.status(500).json({ message: 'Erreur de format JSON.' });
+        }        
     } catch (error) {
         console.error('Error reading menu data:', error.message);
         res.status(500).json({ message: 'Internal server error', error: error.message });
