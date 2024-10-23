@@ -46,6 +46,11 @@ app.use((req, res, next) => {
     next();
 });
 
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ message: 'Erreur interne du serveur.' });
+});
+
 app.options('*', cors()); 
 
 // SQLite Database Initialization
@@ -155,7 +160,7 @@ const generateOrderNumber = (lastOrderNumber) => {
 // Lire le dernier numéro de commande dans la base de données
 const getLastOrderNumber = async () => {
     return new Promise((resolve, reject) => {
-        db.get("SELECT orderNumber FROM commandes ORDER BY id DESC LIMIT 1", (err, row) => {
+        dbs.get("SELECT orderNumber FROM commandes ORDER BY id DESC LIMIT 1", (err, row) => {
             if (err) {
                 return reject(err);
             }
@@ -168,7 +173,7 @@ const getLastOrderNumber = async () => {
 const writeOrder = async (order) => {
     return new Promise((resolve, reject) => {
         const { mealName, softDrink, quantity, tableNumber, orderNumber, date } = order;
-        db.run(
+        dbs.run(
             `INSERT INTO commandes (mealName, softDrink, quantity, tableNumber, orderNumber, date) 
             VALUES (?, ?, ?, ?, ?, ?)`,
             [mealName, softDrink, quantity, tableNumber, orderNumber, date],
@@ -232,7 +237,7 @@ app.post('/api/commandes', async (req, res) => {
 
 // Fonction pour réinitialiser les commandes chaque jour à minuit
 const resetOrders = () => {
-    db.run('DELETE FROM commandes', (err) => {
+    dbs.run('DELETE FROM commandes', (err) => {
         if (err) {
             console.error('Erreur lors de la réinitialisation des commandes:', err.message);
         } else {
