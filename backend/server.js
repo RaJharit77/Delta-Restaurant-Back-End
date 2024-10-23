@@ -154,8 +154,9 @@ app.post('/api/reservations', async (req, res) => {
 });
 
 //generate order number
-const generateOrderNumber = async () => {
-    const lastOrderNumber = await getLastOrderNumber();
+const generateOrderNumber = (orders) => {
+    const lastOrder = orders[orders.length - 1];
+    const lastOrderNumber = lastOrder ? parseInt(lastOrder.orderNumber, 10) : 0;
     return (lastOrderNumber + 1).toString().padStart(6, '0');
 };
 
