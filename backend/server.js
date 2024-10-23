@@ -161,7 +161,7 @@ const generateOrderNumber = async () => {
 
 const writeOrder = (order) => {
     return new Promise((resolve, reject) => {
-        db.run(
+        dbs.run(
             'INSERT INTO commandes (mealName, softDrink, quantity, tableNumber, orderNumber, date) VALUES (?, ?, ?, ?, ?, ?)', 
             [order.mealName, order.softDrink, order.quantity, order.tableNumber, order.orderNumber, order.date], 
             (err) => {
@@ -177,7 +177,7 @@ const writeOrder = (order) => {
 
 const getLastOrderNumber = () => {
     return new Promise((resolve, reject) => {
-        db.get('SELECT orderNumber FROM commandes ORDER BY id DESC LIMIT 1', (err, row) => {
+        dbs.get('SELECT orderNumber FROM commandes ORDER BY id DESC LIMIT 1', (err, row) => {
             if (err) {
                 reject(err);
             } else {
@@ -207,7 +207,7 @@ app.post('/api/commandes', async (req, res) => {
     }
 
     try {
-        const result = await db.run(
+        const result = await dbs.run(
             'INSERT INTO commandes (mealName, softDrink, quantity, tableNumber, orderNumber, date) VALUES (?, ?, ?, ?, ?, ?)',
             [mealName, softDrink, quantity, tableNumber, orderNumber, date]
         );
@@ -220,7 +220,7 @@ app.post('/api/commandes', async (req, res) => {
 
 // Fonction pour réinitialiser les commandes chaque jour à minuit
 const resetOrders = () => {
-    db.run('DELETE FROM commandes', (err) => {
+    dbs.run('DELETE FROM commandes', (err) => {
         if (err) {
             console.error('Erreur lors de la réinitialisation des commandes:', err.message);
         } else {
