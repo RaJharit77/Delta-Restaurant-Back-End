@@ -28,6 +28,7 @@ const corsOptions = {
             callback(new Error('Not allowed by CORS'));
         }
     },
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'UPDATE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
@@ -102,6 +103,25 @@ dbs.run(`
     )
 `);
 
+const runQuery = (db, query, params = []) => {
+    return new Promise((resolve, reject) => {
+        db.run(query, params, function (err) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(this.lastID);
+            }
+        });
+        dbs.run(query, params, function (err) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(this.lastID);
+            }
+        });
+    });
+};
+
 // Routes
 // Menus
 app.get('/api/menus', async (req, res) => {
@@ -161,7 +181,7 @@ const generateOrderNumber = (orders) => {
 
 const readOrders = async () => {
     try {
-        const data = await fs.readFile(path.join(__dirname, './data/commandes.json'), 'utf8');
+        const data = await fs.readFile(path.join(__dirname, './commandes.db'), 'utf8');
         return JSON.parse(data || '[]');
     } catch (error) {
         console.error('Erreur lors de la lecture du fichier commande.json:', error.message);
@@ -171,7 +191,7 @@ const readOrders = async () => {
 
 const writeOrders = async (orders) => {
     try {
-        await fs.writeFile(path.join(__dirname, './data/commandes.json'), JSON.stringify(orders, null, 2));
+        await fs.writeFile(path.join(__dirname, './data/commandes.db'), JSON.stringify(orders, null, 2));
     } catch (error) {
         console.error('Erreur lors de l\'écriture dans le fichier commande.json:', error.message);
     }
