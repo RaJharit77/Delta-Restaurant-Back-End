@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs/promises';
+import Datastore from 'nedb';
 import cron from 'node-cron';
 import path from 'path';
 import sqlite3 from 'sqlite3';
@@ -12,7 +13,7 @@ const app = express();
 
 const PORT = process.env.PORT || 5000;
 const dbPath = process.env.DB_PATH || './database.db';
-const orderDbPath = process.env.COMMANDES_DB_PATH || './commandes.db';
+const ordersDb = new Datastore({ filename: './orders.db', autoload: true });
 
 const allowedOrigins = [
     'https://delta-restaurant-madagascar.vercel.app',
@@ -189,20 +190,17 @@ app.post('/api/reservations', (req, res) => {
     );
 });
 
-// Function to generate a new order number
-const generateOrderNumber = (callback) => {
-    console.log('Tentative de génération d\'un nouveau numéro de commande...');
-    orderDb.get('SELECT orderNumber FROM commandes ORDER BY id DESC LIMIT 1', (err, row) => {
-        if (err) {
-            console.error('Erreur lors de la génération du numéro de commande:', err.message);
-            callback(null);
-            return;
-        }
-        const lastOrderNumber = row ? parseInt(row.orderNumber) : 0;
-        const newOrderNumber = (lastOrderNumber + 1).toString().padStart(6, '0');
-        console.log('Nouveau numéro de commande généré:', newOrderNumber);
-        callback(newOrderNumber);
-    });
+// Fonction pour générer un numéro de commande unique
+const generateOrderNumber = async () => {
+    try {
+        const data = await fs.readFile(ordersFilePath, 'utf8');
+        const orders = JSON.parse(data);
+        const lastOrderNumber = orders.length > 0 ? parseInt(orders[orders.length - 1].orderNumber) : 0;
+        return (lastOrderNumber + 1).toString().padStart(6, '0');
+    } catch (error) {
+        console.error('Erreur lors de la génération du numéro de commande:', error.message);
+        return null;
+    }
 };
 
 // Route pour générer un numéro de commande
@@ -220,8 +218,7 @@ app.get('/api/generateOrderNumber', (req, res) => {
     });
 });
 
-// Example for creating a new order
-app.post('/api/commandes', (req, res) => {
+app.post('/api/commandes', async (req, res) => {
     const { mealName, softDrink, quantity, tableNumber } = req.body;
     const date = new Date().toISOString();
 
@@ -229,39 +226,43 @@ app.post('/api/commandes', (req, res) => {
         return res.status(400).json({ message: 'Tous les champs sont requis.' });
     }
 
-    generateOrderNumber((orderNumber) => {
-        if (!orderNumber) {
-            return res.status(500).json({ message: 'Erreur lors de la génération du numéro de commande.' });
-        }
+    const orderNumber = await generateOrderNumber();
+    if (!orderNumber) {
+        return res.status(500).json({ message: 'Erreur lors de la génération du numéro de commande.' });
+    }
 
-        orderDb.run(
-            'INSERT INTO commandes (mealName, softDrink, quantity, tableNumber, orderNumber, date) VALUES (?, ?, ?, ?, ?, ?)',
-            [mealName, softDrink, quantity, tableNumber, orderNumber, date],
-            function (err) {
-                if (err) {
-                    console.error('Erreur lors de la création de la commande:', err.message);
-                    return res.status(500).json({ message: 'Erreur lors de la création de la commande.' });
-                }
-                res.status(201).json({ message: 'Commande créée avec succès.', orderNumber });
-            }
-        );
-    });
+    const newOrder = { mealName, softDrink, quantity, tableNumber, orderNumber, date };
+
+    try {
+        const data = await fs.readFile(ordersFilePath, 'utf8');
+        const orders = JSON.parse(data);
+        orders.push(newOrder);
+        await fs.writeFile(ordersFilePath, JSON.stringify(orders, null, 2));
+        res.status(201).json({ message: 'Commande créée avec succès.', orderNumber });
+    } catch (error) {
+        console.error('Erreur lors de la création de la commande:', error.message);
+        res.status(500).json({ message: 'Erreur lors de la création de la commande.' });
+    }
 });
 
 // Réinitialiser les commandes
 const resetOrders = () => {
-    orderDb.run('DELETE FROM commandes', (err) => {
+    orderDb.remove({}, { multi: true }, (err, numRemoved) => {
         if (err) {
             console.error('Erreur lors de la réinitialisation des commandes:', err.message);
         } else {
-            console.log('Toutes les commandes ont été réinitialisées.');
+            console.log(`Toutes les commandes (${numRemoved}) ont été réinitialisées.`);
             initializeInitialOrderNumber();
+            console.log('Le numéro de commande initial a été réinitialisé.');
         }
     });
 };
 
-// Cron job for resetting orders every day at midnight
-cron.schedule('0 0 * * *', resetOrders);
+// Tâche cron pour réinitialiser les commandes tous les jours à minuit
+cron.schedule('0 0 * * *', () => {
+    console.log('Réinitialisation des commandes à minuit.');
+    resetOrders();
+});
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
