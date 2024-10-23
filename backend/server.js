@@ -195,11 +195,12 @@ const generateOrderNumber = (callback) => {
         if (err) {
             console.error('Erreur lors de la génération du numéro de commande:', err.message);
             callback(null);
-        } else {
-            const lastOrderNumber = row ? parseInt(row.orderNumber) : 0;
-            const newOrderNumber = (lastOrderNumber + 1).toString().padStart(6, '0');
-            callback(newOrderNumber);
+            return; // Ajouté pour sortir en cas d'erreur
         }
+        const lastOrderNumber = row ? parseInt(row.orderNumber) : 0;
+        const newOrderNumber = (lastOrderNumber + 1).toString().padStart(6, '0');
+        console.log('Nouveau numéro de commande généré:', newOrderNumber); // Log pour vérifier le numéro
+        callback(newOrderNumber);
     });
 };
 
