@@ -124,7 +124,7 @@ const Commande = sequelize.define('Commande', {
 // Sync the database
 sequelize.sync().then(() => {
     console.log('La table Commandes a été créée.');
-});;
+});
 
 // Routes
 // Menus
