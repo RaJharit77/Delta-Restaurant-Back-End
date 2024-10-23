@@ -230,7 +230,7 @@ app.post('/api/commandes', async (req, res) => {
             'INSERT INTO commandes (mealName, softDrink, quantity, tableNumber, orderNumber, date) VALUES (?, ?, ?, ?, ?, ?)',
             [mealName, softDrink, quantity, tableNumber, orderNumber, date]
         );
-        res.status(201).json({ message: 'Commande créée avec succès.', nextOrderNumber: orderNumber + 1 }); // Logique pour le numéro de commande
+        res.status(201).json({ message: 'Commande créée avec succès.', nextOrderNumber: orderNumber}); // Logique pour le numéro de commande
     } catch (error) {
         console.error('Erreur lors de la création de la commande:', error);
         res.status(500).json({ message: 'Erreur lors de la création de la commande.' });
