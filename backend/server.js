@@ -1,7 +1,6 @@
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs/promises';
-import cron from 'node-cron';
 import path from 'path';
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
@@ -75,6 +74,28 @@ const db = new sqlite3.Database(dbPath, (err) => {
     }
 });
 
+// Initialisation de la base de données SQLite
+const dbs = new sqlite3.Database('./data/commandes.db', (err) => {
+    if (err) {
+        console.error('Erreur lors de la connexion à SQLite:', err.message);
+    } else {
+        console.log('Connecté à la base de données SQLite.');
+    }
+});
+
+// Création de la table commandes si elle n'existe pas déjà
+dbs.run(`
+    CREATE TABLE IF NOT EXISTS commandes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        mealName TEXT NOT NULL,
+        softDrink TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        tableNumber INTEGER NOT NULL,
+        orderNumber TEXT NOT NULL,
+        date TEXT NOT NULL
+    )
+`);
+
 // Routes
 // Menus
 app.get('/api/menus', async (req, res) => {
@@ -125,7 +146,8 @@ app.post('/api/reservations', async (req, res) => {
     }
 });
 
-const generateOrderNumber = (orders) => {
+//generate number
+/**const generateOrderNumber = (orders) => {
     const lastOrder = orders[orders.length - 1];
     const lastOrderNumber = lastOrder ? parseInt(lastOrder.orderNumber, 10) : 0;
     return (lastOrderNumber + 1).toString().padStart(6, '0');
@@ -207,7 +229,105 @@ const resetOrderNumber = async () => {
 };
 
 // Schedule a job to run at 23:59 every day
-cron.schedule('59 23 * * *', resetOrderNumber);
+cron.schedule('59 23 * * *', resetOrderNumber);*/
+
+//generate number
+const generateOrderNumber = (lastOrderNumber) => {
+    const lastNumber = lastOrderNumber ? parseInt(lastOrderNumber, 10) : 0;
+    return (lastNumber + 1).toString().padStart(6, '0');
+};
+
+// Lire le dernier numéro de commande dans la base de données
+const getLastOrderNumber = async () => {
+    return new Promise((resolve, reject) => {
+        db.get("SELECT orderNumber FROM commandes ORDER BY id DESC LIMIT 1", (err, row) => {
+            if (err) {
+                return reject(err);
+            }
+            resolve(row ? row.orderNumber : null);
+        });
+    });
+};
+
+// Enregistrer une commande dans la base de données
+const writeOrder = async (order) => {
+    return new Promise((resolve, reject) => {
+        const { mealName, softDrink, quantity, tableNumber, orderNumber, date } = order;
+        db.run(
+            `INSERT INTO commandes (mealName, softDrink, quantity, tableNumber, orderNumber, date) 
+            VALUES (?, ?, ?, ?, ?, ?)`,
+            [mealName, softDrink, quantity, tableNumber, orderNumber, date],
+            function (err) {
+                if (err) {
+                    return reject(err);
+                }
+                resolve(this.lastID);
+            }
+        );
+    });
+};
+
+// Endpoint pour générer un nouveau numéro de commande
+app.get('/api/generateOrderNumber', async (req, res) => {
+    try {
+        const lastOrderNumber = await getLastOrderNumber();
+        const orderNumber = generateOrderNumber(lastOrderNumber);
+        res.status(200).json({ orderNumber });
+    } catch (error) {
+        console.error('Erreur lors de la génération du numéro de commande:', error.message);
+        res.status(500).json({ message: 'Erreur interne du serveur.' });
+    }
+});
+
+// Endpoint pour créer une commande
+app.post('/api/commandes', async (req, res) => {
+    const { mealName, softDrink, quantity, tableNumber } = req.body;
+
+    if (!mealName || !softDrink || !quantity || !tableNumber) {
+        return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
+    }
+
+    try {
+        const lastOrderNumber = await getLastOrderNumber();
+        const orderNumber = generateOrderNumber(lastOrderNumber);
+
+        const newOrder = {
+            mealName,
+            softDrink,
+            quantity,
+            tableNumber,
+            orderNumber,
+            date: new Date().toISOString(),
+        };
+
+        await writeOrder(newOrder);
+        
+        const nextOrderNumber = generateOrderNumber(orderNumber);
+
+        return res.status(200).json({
+            message: 'Commande reçue avec succès!',
+            order: newOrder,
+            nextOrderNumber,
+        });
+    } catch (error) {
+        console.error('Erreur lors du traitement de la commande:', error.message);
+        return res.status(500).json({ message: 'Erreur interne du serveur.' });
+    }
+});
+
+// Fonction pour réinitialiser les commandes chaque jour à minuit
+const resetOrders = () => {
+    db.run('DELETE FROM commandes', (err) => {
+        if (err) {
+            console.error('Erreur lors de la réinitialisation des commandes:', err.message);
+        } else {
+            console.log('Commandes réinitialisées.');
+        }
+    });
+};
+
+// Planification de la réinitialisation quotidienne à 23h59
+cron.schedule('59 23 * * *', resetOrders);
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
