@@ -179,6 +179,7 @@ app.post('/api/commandes', (req, res) => {
     const newOrder = { mealName, softDrink, quantity, tableNumber, orderNumber, date };
     alasql('INSERT INTO commandes VALUES (?, ?, ?, ?, ?, ?)', [orderNumber, mealName, softDrink, quantity, tableNumber, date]);
 
+    res.status(200).json({ message: 'Commande créée avec succès.', orderNumber });
     res.status(201).json({ message: 'Commande créée avec succès.', orderNumber });
 });
 
