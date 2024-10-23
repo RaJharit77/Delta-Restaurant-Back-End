@@ -56,7 +56,7 @@ app.use((err, req, res, next) => {
     res.status(500).json({ message: 'Erreur interne du serveur.' });
 });
 
-app.options('*', cors()); 
+app.options('*', cors());
 
 // SQLite Database Initialization
 const db = new sqlite3.Database(dbPath, (err) => {
@@ -138,7 +138,7 @@ app.get('/api/menus', async (req, res) => {
         } catch (parseError) {
             console.error('Erreur lors de l\'analyse JSON :', parseError.message);
             res.status(500).json({ message: 'Erreur de format JSON.' });
-        }        
+        }
     } catch (error) {
         console.error('Error reading menu data:', error.message);
         res.status(500).json({ message: 'Internal server error', error: error.message });
