@@ -92,7 +92,7 @@ const dbs = new sqlite3.Database('./commandes.db', (err) => {
 });
 
 // Création de la table commandes si elle n'existe pas déjà
-db.run(`
+dbs.run(`
     CREATE TABLE IF NOT EXISTS commandes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         mealName TEXT NOT NULL,
