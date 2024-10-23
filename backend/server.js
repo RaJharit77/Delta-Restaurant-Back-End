@@ -13,7 +13,7 @@ const app = express();
 
 const PORT = process.env.PORT || 5000;
 const dbPath = process.env.DB_PATH || './database.db';
-const ordersDb = new Datastore({ filename: './orders.db', autoload: true });
+const orderDb = new Datastore({ filename: './orders.db', autoload: true });
 
 const allowedOrigins = [
     'https://delta-restaurant-madagascar.vercel.app',
@@ -81,55 +81,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
         );`);
     }
 });
-
-const orderDb = new sqlite3.Database(orderDbPath, (err) => {
-    if (err) {
-        console.error('Erreur lors de l\'ouverture de la base de données des commandes:', err.message);
-    } else {
-        console.log('Connected to SQLite orders database.');
-        orderDb.run(`CREATE TABLE IF NOT EXISTS commandes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            mealName TEXT NOT NULL,
-            softDrink TEXT NOT NULL,
-            quantity INTEGER NOT NULL,
-            tableNumber INTEGER NOT NULL,
-            orderNumber TEXT NOT NULL UNIQUE,
-            date TEXT NOT NULL
-        );`, (err) => {
-            if (err) {
-                console.error('Erreur lors de la création de la table des commandes:', err.message);
-            } else {
-                initializeInitialOrderNumber();
-            }
-        });
-    }
-});
-
-// Function to initialize the first order number
-const initializeInitialOrderNumber = () => {
-    orderDb.get('SELECT COUNT(*) as count FROM commandes', (err, row) => {
-        if (err) {
-            console.error('Erreur lors de la vérification des commandes:', err.message);
-            return;
-        }
-        if (row.count === 0) {
-            // Insert the initial order with number "000001"
-            const initialOrderNumber = "000001";
-            const initialDate = new Date().toISOString();
-            orderDb.run(
-                'INSERT INTO commandes (mealName, softDrink, quantity, tableNumber, orderNumber, date) VALUES (?, ?, ?, ?, ?, ?)',
-                ['Initial Meal', 'Initial Drink', 1, 1, initialOrderNumber, initialDate],
-                (err) => {
-                    if (err) {
-                        console.error('Erreur lors de l\'insertion de la commande initiale:', err.message);
-                    } else {
-                        console.log('Commande initiale insérée avec succès avec le numéro:', initialOrderNumber);
-                    }
-                }
-            );
-        }
-    });
-};
 
 // Routes
 // Menus
