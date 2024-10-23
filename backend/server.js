@@ -172,35 +172,43 @@ app.post('/api/reservations', async (req, res) => {
     }
 });
 
-//generate number
-const generateOrderNumber = (orders) => {
-    const lastOrder = orders[orders.length - 1];
-    const lastOrderNumber = lastOrder ? parseInt(lastOrder.orderNumber, 10) : 0;
+//generate order number
+const generateOrderNumber = async () => {
+    const lastOrderNumber = await getLastOrderNumber();
     return (lastOrderNumber + 1).toString().padStart(6, '0');
 };
 
-const readOrders = async () => {
-    try {
-        const data = await fs.readFile(path.join(__dirname, './commandes.db'), 'utf8');
-        return JSON.parse(data || '[]');
-    } catch (error) {
-        console.error('Erreur lors de la lecture du fichier commande.json:', error.message);
-        return [];
-    }
+const writeOrder = (order) => {
+    return new Promise((resolve, reject) => {
+        dbs.run(
+            'INSERT INTO commandes (mealName, softDrink, quantity, tableNumber, orderNumber, date) VALUES (?, ?, ?, ?, ?, ?)', 
+            [order.mealName, order.softDrink, order.quantity, order.tableNumber, order.orderNumber, order.date], 
+            (err) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve();
+                }
+            }
+        );
+    });
 };
 
-const writeOrders = async (orders) => {
-    try {
-        await fs.writeFile(path.join(__dirname, './data/commandes.db'), JSON.stringify(orders, null, 2));
-    } catch (error) {
-        console.error('Erreur lors de l\'écriture dans le fichier commande.json:', error.message);
-    }
+const getLastOrderNumber = () => {
+    return new Promise((resolve, reject) => {
+        dbs.get('SELECT orderNumber FROM commandes ORDER BY id DESC LIMIT 1', (err, row) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(row ? parseInt(row.orderNumber, 10) : 0);
+            }
+        });
+    });
 };
 
 app.get('/api/generateOrderNumber', async (req, res) => {
     try {
-        const orders = await readOrders();  
-        const orderNumber = generateOrderNumber(orders);
+        const orderNumber = await generateOrderNumber();  
         res.status(200).json({ orderNumber });
     } catch (error) {
         console.error('Erreur lors de la génération du numéro de commande:', error.message);
@@ -217,8 +225,7 @@ app.post('/api/commandes', async (req, res) => {
     }
 
     try {
-        const lastOrderNumber = await getLastOrderNumber();
-        const orderNumber = generateOrderNumber(lastOrderNumber);
+        const orderNumber = await generateOrderNumber();
 
         const newOrder = {
             mealName,
@@ -229,14 +236,12 @@ app.post('/api/commandes', async (req, res) => {
             date: new Date().toISOString(),
         };
 
+        // Insérer la commande dans SQLite
         await writeOrder(newOrder);
-        
-        const nextOrderNumber = generateOrderNumber(orderNumber);
 
         return res.status(200).json({
             message: 'Commande reçue avec succès!',
             order: newOrder,
-            nextOrderNumber,
         });
     } catch (error) {
         console.error('Erreur lors du traitement de la commande:', error.message);
