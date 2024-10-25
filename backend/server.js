@@ -2,7 +2,6 @@ import alasql from 'alasql';
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs-extra';
-import cron from 'node-cron';
 import path from 'path';
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
@@ -73,11 +72,20 @@ const db = new sqlite3.Database(dbPath, (err) => {
             dateTime TEXT,
             guests INTEGER
         );`);
+
+        db.run(`CREATE TABLE IF NOT EXISTS commandes (
+            orderNumber INTEGER PRIMARY KEY AUTOINCREMENT,
+            mealName TEXT,
+            softDrink TEXT,
+            quantity INTEGER,
+            tableNumber TEXT,
+            date TEXT
+        );`);
     }
 });
 
 // Initialiser la base de données en mémoire
-alasql('CREATE TABLE commandes (orderNumber STRING, mealName STRING, softDrink STRING, quantity INT, tableNumber STRING, date STRING)');
+/*alasql('CREATE TABLE commandes (orderNumber STRING, mealName STRING, softDrink STRING, quantity INT, tableNumber STRING, date STRING)');*/
 
 // Routes
 // Menus
@@ -135,7 +143,7 @@ app.post('/api/reservations', async (req, res) => {
 });
 
 // Fonction pour générer un numéro de commande unique
-const generateOrderNumber = async () => {
+/**const generateOrderNumber = async () => {
     try {
         const data = await fs.readFile(ordersFilePath, 'utf8');
         const orders = JSON.parse(data);
@@ -178,6 +186,70 @@ app.post('/api/commandes', (req, res) => {
 const resetOrders = () => {
     alasql('DELETE FROM commandes');
     console.log('Toutes les commandes ont été réinitialisées.');
+};
+
+// Tâche cron pour réinitialiser les commandes tous les jours à minuit
+cron.schedule('0 0 * * *', () => {
+    console.log('Réinitialisation des commandes à minuit.');
+    resetOrders();
+});*/
+
+// Fonction pour générer un numéro de commande unique en utilisant SQLite
+const generateOrderNumber = (callback) => {
+    db.get('SELECT orderNumber FROM commandes ORDER BY orderNumber DESC LIMIT 1', (err, row) => {
+        if (err) {
+            console.error('Erreur lors de la génération du numéro de commande:', err.message);
+            callback(null); // Renvoie null en cas d'erreur
+        } else {
+            const lastOrderNumber = row ? parseInt(row.orderNumber) : 0;
+            const newOrderNumber = (lastOrderNumber + 1).toString().padStart(6, '0');
+            callback(newOrderNumber); // Renvoie le nouveau numéro de commande
+        }
+    });
+};
+
+// Route pour générer un numéro de commande
+app.get('/api/generateOrderNumber', (req, res) => {
+    generateOrderNumber((newOrderNumber) => {
+        if (newOrderNumber) {
+            res.status(200).json({ orderNumber: newOrderNumber });
+        } else {
+            res.status(500).json({ message: 'Erreur lors de la génération du numéro de commande.' });
+        }
+    });
+});
+
+// Endpoint pour créer une commande
+app.post('/api/commandes', (req, res) => {
+    const { mealName, softDrink, quantity, tableNumber } = req.body;
+    const date = new Date().toISOString();
+
+    if (!mealName || !softDrink || !quantity || !tableNumber) {
+        return res.status(400).json({ message: 'Tous les champs sont requis.' });
+    }
+
+    db.run(
+        'INSERT INTO commandes (mealName, softDrink, quantity, tableNumber, date) VALUES (?, ?, ?, ?, ?)',
+        [mealName, softDrink, quantity, tableNumber, date],
+        function (err) {
+            if (err) {
+                console.error('Erreur lors de la création de la commande:', err.message);
+                return res.status(500).json({ message: 'Erreur serveur.' });
+            }
+            res.status(201).json({ message: 'Commande créée avec succès.', orderNumber: this.lastID });
+        }
+    );
+});
+
+// Fonction de réinitialisation des commandes
+const resetOrders = () => {
+    db.run('DELETE FROM commandes', (err) => {
+        if (err) {
+            console.error('Erreur lors de la réinitialisation des commandes:', err.message);
+        } else {
+            console.log('Toutes les commandes ont été réinitialisées.');
+        }
+    });
 };
 
 // Tâche cron pour réinitialiser les commandes tous les jours à minuit
