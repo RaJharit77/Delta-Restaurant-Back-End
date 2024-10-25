@@ -194,11 +194,13 @@ cron.schedule('0 0 * * *', () => {
     resetOrders();
 });
 
+//Status 500
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ message: 'Erreur interne du serveur.' });
 });
 
+//Démarrage du serveur
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
