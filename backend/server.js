@@ -48,11 +48,6 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ message: 'Erreur interne du serveur.' });
-});
-
 app.options('*', cors());
 
 // SQLite Database Initialization
@@ -189,6 +184,11 @@ const resetOrders = () => {
 cron.schedule('0 0 * * *', () => {
     console.log('Réinitialisation des commandes à minuit.');
     resetOrders();
+});
+
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ message: 'Erreur interne du serveur.' });
 });
 
 app.listen(PORT, () => {
