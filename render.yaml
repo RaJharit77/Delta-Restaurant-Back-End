@@ -24,6 +24,8 @@ services:
         value: ./data/commandes.json
       - key: CONTACTS_PATH
         value: ./data/contacts.json
+      - key: DB_PATH
+        value: ./database.db
       - key: PORT
         value: 5000
     autoDeploy: true
