@@ -2,7 +2,7 @@
 Ce projet est à propos de la restaurant nommé <mark>Delta Restaurant®</mark> en utilisant le framework <mark>Express JS</mark> et le SGBD <mark>SQLite</mark> ainsi que l'utilisation d'une autre bibliothèque nommé <mark>AlaSQL</mark> comme outils pour le back-end de ce site.
 
 ### Description du projet
-Ceci est une repository pour le backend avec l'API Rest de mon projet personnel pendant une année de passage (L1) chez HEI(Haute École d'informatique) nommé Delta Restaurant.
+Ceci est une repository pour le backend avec l'API Rest de mon projet personnel pendant une année de passage (L1) chez HEI(Haute École d'informatique).
 
 ### L'idée générale du projet
 Ce projet est une inspiration des goûts et cultures gastronomiques, l'amour de cusiner et aussi la passion pour l'informatique de créer et donner une solution innovante pour la génération futur. 
