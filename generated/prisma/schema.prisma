@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Menu {
+  id          String @id @default(uuid())
+  name        String
+  description String
+  price       Float
+  image       String
+}
+
+model Contact {
+  id      String @id @default(uuid())
+  name    String
+  email   String
+  subject String
+  message String
+}
+
+model Reservation {
+  id        String   @id @default(uuid())
+  firstname String
+  name      String?
+  email     String?
+  phone     String?
+  dateTime  DateTime
+  guests    Int
+}
+
+model Commande {
+  id          String   @id @default(uuid())
+  orderNumber String
+  mealName    String
+  softDrink   String
+  quantity    Int
+  tableNumber String
+  date        DateTime
+}
