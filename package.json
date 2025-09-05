@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "server": "nodemon ./backend/server.js",
-    "migrate": "node ./backend/migrate.js",
+    "migrate": "node ./backend/script/migrate.js",
     "build": "prisma generate && prisma db push",
     "vercel-build": "prisma generate && prisma db push"
   },
