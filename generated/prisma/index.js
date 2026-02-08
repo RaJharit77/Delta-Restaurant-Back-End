@@ -171,7 +171,7 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "debian-openssl-1.1.x",
+        "value": "debian-openssl-3.0.x",
         "native": true
       }
     ],
@@ -180,7 +180,7 @@ const config = {
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
-    "rootEnvPath": "../../.env",
+    "rootEnvPath": null,
     "schemaEnvPath": "../../.env"
   },
   "relativePath": "../../prisma",
@@ -190,7 +190,6 @@ const config = {
     "db"
   ],
   "activeProvider": "postgresql",
-  "postinstall": false,
   "inlineDatasources": {
     "db": {
       "url": {
@@ -201,7 +200,7 @@ const config = {
   },
   "inlineSchema": "generator client {\n  provider = \"prisma-client-js\"\n  output   = \"../generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel Menu {\n  id          String @id @default(uuid())\n  name        String\n  description String\n  price       Float\n  image       String\n}\n\nmodel Contact {\n  id      String @id @default(uuid())\n  name    String\n  email   String\n  subject String\n  message String\n}\n\nmodel Reservation {\n  id        String   @id @default(uuid())\n  firstname String\n  name      String?\n  email     String?\n  phone     String?\n  dateTime  DateTime\n  guests    Int\n}\n\nmodel Commande {\n  id          String   @id @default(uuid())\n  orderNumber String\n  mealName    String\n  softDrink   String\n  quantity    Int\n  tableNumber String\n  date        DateTime\n}\n",
   "inlineSchemaHash": "7fc6c9fea24d7f87385b41e50fbe11fb758edf09b64abb23d1bcad074c71b599",
-  "copyEngine": true
+  "copyEngine": false
 }
 
 const fs = require('fs')
@@ -238,9 +237,3 @@ const PrismaClient = getPrismaClient(config)
 exports.PrismaClient = PrismaClient
 Object.assign(exports, Prisma)
 
-// file annotations for bundling tools to include these files
-path.join(__dirname, "libquery_engine-debian-openssl-1.1.x.so.node");
-path.join(process.cwd(), "generated/prisma/libquery_engine-debian-openssl-1.1.x.so.node")
-// file annotations for bundling tools to include these files
-path.join(__dirname, "schema.prisma");
-path.join(process.cwd(), "generated/prisma/schema.prisma")
