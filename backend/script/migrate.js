@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '../../generated/prisma/index.js'
 import { v4 as uuidv4 } from 'uuid'
 import fs from 'fs'
 import path from 'path'
@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename)
 const prisma = new PrismaClient()
 
 async function main() {
-    const dataPath = path.resolve(__dirname, 'data/data.json')
+    const dataPath = path.resolve(__dirname, '../data/data.json')
     console.log('Chemin du fichier data:', dataPath)
 
     const menuData = JSON.parse(fs.readFileSync(dataPath, 'utf8'))
